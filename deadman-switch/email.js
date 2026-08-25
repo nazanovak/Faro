@@ -24,6 +24,7 @@ async function sendEmail({ to, subject, html }) {
       body: JSON.stringify({
         sender: { name: APP_NAME, email: SENDER_EMAIL },
         to: [{ email: to }],
+        replyTo: { email: SENDER_EMAIL },
         subject,
         htmlContent: html,
       }),
@@ -44,33 +45,84 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
-function alertEmailHtml({ userName, contactName, personalMessage, lastCheckinAt }) {
-  const safeMessage = (personalMessage || '').replace(/\n/g, '<br>');
-  return `
-  <div style="font-family: -apple-system, Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
-    <h2 style="color:#b91c1c;">Alerta de check-in no realizado</h2>
-    <p>Hola ${contactName || ''},</p>
-    <p><strong>${userName}</strong> no hizo check-in dentro del plazo configurado en su app de seguridad
-    (ultimo check-in: ${lastCheckinAt}). Por eso te llega este mensaje, que ${userName} dejo preparado para vos:</p>
-    <blockquote style="background:#f4f4f5; border-left:4px solid #b91c1c; padding:12px 16px; margin:16px 0;">
-      ${safeMessage || '(No se escribio un mensaje personalizado.)'}
-    </blockquote>
-    <p style="color:#555; font-size: 14px;">Esto no significa necesariamente que algo malo haya pasado — puede ser
-    un olvido, un viaje o un problema con el telefono. Pero si te parece razonable, te sugerimos intentar contactar
-    a ${userName} o pasar a verificar que este bien.</p>
-    <p style="color:#999; font-size: 12px; margin-top: 24px;">Mensaje automatico enviado por la app de check-in de ${userName}.</p>
-  </div>`;
+// Convierte números de teléfono sueltos en un texto a links tel: tocables,
+// así en el celular el destinatario puede tocar y llamar directo.
+function linkifyPhones(text) {
+  return text.replace(/(\+\d[\d\s\-\u2011]{6,}\d)/g, (match) => {
+    const clean = match.replace(/[\s\-\u2011]/g, '');
+    return `<a href="tel:${clean}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${match}</a>`;
+  });
 }
 
-function warningEmailHtml({ userName, hoursLeftPercent }) {
-  return `
-  <div style="font-family: -apple-system, Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
-    <h2 style="color:#b45309;">Falta poco para tu limite de check-in</h2>
-    <p>Hola ${userName},</p>
-    <p>Todavia no hiciste check-in en tu app. Si no lo hacés antes de que se cumpla tu intervalo configurado,
-    se les va a enviar automaticamente un mail a tus contactos de emergencia.</p>
-    <p>Entrá a la app y tocá "Check-in ahora" para reiniciar el contador.</p>
-  </div>`;
+const EMAIL_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif";
+
+function emailShell({ iconGradient, title, subtitle, bodyHtml }) {
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;">
+  <div style="background:#fdf6ec;padding:36px 16px;font-family:${EMAIL_FONT};">
+    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:20px;padding:8px;box-shadow:0 4px 16px rgba(30,27,20,0.08);">
+      <div style="border:1px solid #eee0c8;border-radius:16px;padding:36px 32px;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="width:64px;height:64px;border-radius:50%;background:${iconGradient};margin:0 auto 16px;box-shadow:0 0 0 6px #fef3c7;"></div>
+          <h1 style="color:#1c1917;font-size:21px;margin:0;font-weight:400;font-family:Georgia,'Times New Roman',serif;">${title}</h1>
+          <p style="color:#a8a29e;font-size:12.5px;margin:6px 0 0;">${subtitle}</p>
+        </div>
+        ${bodyHtml}
+      </div>
+    </div>
+    <p style="color:#c4b89a;font-size:11px;text-align:center;margin:18px 0 0;">Enviado automáticamente por Faro, tu app de check-in.</p>
+  </div>
+</body></html>`;
+}
+
+function alertEmailHtml({ userName, contactName, personalMessage, lastCheckinAt }) {
+  const safeMessage = linkifyPhones((personalMessage || '').replace(/\n/g, '<br>'));
+  const fecha = new Date(lastCheckinAt).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' });
+  const bodyHtml = `
+        <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0 0 22px;">
+          Hola ${contactName || ''},
+        </p>
+        <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
+          <strong style="color:#1c1917;">${userName}</strong> no hizo check-in dentro del plazo configurado en su
+          app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático, con lo que
+          ${userName} dejó preparado para vos:
+        </p>
+        <div style="background:#fdf6ec;border-radius:12px;padding:22px 24px;margin:0 0 22px;">
+          <p style="color:#292524;font-size:14.5px;line-height:1.85;margin:0;">
+            ${safeMessage || '(No se escribió un mensaje personalizado.)'}
+          </p>
+        </div>
+        <p style="color:#a8a29e;font-size:12.5px;line-height:1.6;margin:0;">
+          Esto no significa necesariamente que algo malo haya pasado — puede ser un olvido, un viaje o un problema
+          con el teléfono. Pero si te parece razonable, intentá contactar a ${userName} o pasar a verificar que esté bien.
+        </p>`;
+  return emailShell({
+    iconGradient: 'radial-gradient(circle at 35% 30%,#fde68a,#d97706)',
+    title: `${userName} no hizo check-in`,
+    subtitle: fecha,
+    bodyHtml,
+  });
+}
+
+function warningEmailHtml({ userName }) {
+  const bodyHtml = `
+        <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0 0 22px;">
+          Hola ${userName},
+        </p>
+        <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
+          Todavía no hiciste check-in en Faro. Si no lo hacés antes de que se cumpla tu intervalo configurado,
+          se les va a avisar automáticamente a tus contactos de emergencia.
+        </p>
+        <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0;">
+          Entrá a la app y tocá <strong style="color:#1c1917;">"Hacer check-in ahora"</strong> para reiniciar el contador.
+        </p>`;
+  return emailShell({
+    iconGradient: 'radial-gradient(circle at 35% 30%,#fef3c7,#f59e0b)',
+    title: 'Falta poco para tu check-in',
+    subtitle: '',
+    bodyHtml,
+  });
 }
 
 module.exports = { sendEmail, alertEmailHtml, warningEmailHtml };
