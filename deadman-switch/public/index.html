@@ -79,6 +79,8 @@
   @media (prefers-reduced-motion: reduce){.pulse-dot{animation:none;}}
 
   .contact{border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:10px;}
+  .contact-edit label{margin-top:12px;}
+  .contact-edit label:first-child{margin-top:0;}
   .contact-head{display:flex;justify-content:space-between;align-items:center;}
   .contact-name{font-weight:600;}
   .contact-email{color:var(--muted);font-size:13px;}
@@ -162,7 +164,9 @@
 
     <div class="section-title">Configuración</div>
     <div class="card">
-      <label>Cada cuánto tenés que hacer check-in</label>
+      <label>Tu nombre (como te van a nombrar los mails)</label>
+      <input id="settingsName" type="text" placeholder="Ej: Naza">
+      <label style="margin-top:16px;">Cada cuánto tenés que hacer check-in</label>
       <select id="settingsInterval">
         <option value="24">Cada 24 horas</option>
         <option value="48">Cada 48 horas</option>
@@ -174,8 +178,16 @@
         <input type="checkbox" id="pausedCheck" style="width:auto;">
         <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
       </label>
+      <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
+      <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
       <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
       <div class="ok hidden" id="settingsOk">Guardado.</div>
+    </div>
+
+    <div class="card" style="border-color:var(--red);">
+      <div class="section-title" style="margin-top:0;color:var(--red);">Zona de peligro</div>
+      <p class="muted" style="margin:0 0 12px;">Borra tu cuenta, tus contactos y todo tu historial. No se puede deshacer.</p>
+      <button class="btn-danger" id="deleteAccountBtn" style="width:100%;">Borrar mi cuenta</button>
     </div>
 
     <div class="section-title">Tus contactos de emergencia</div>
@@ -250,6 +262,8 @@ async function loadApp() {
   $('auth').style.display = 'none';
   $('app').style.display = 'block';
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
+  $('settingsName').value = state.user.name || '';
+  $('settingsDefaultMessage').value = state.user.default_message || '';
   $('settingsInterval').value = String(state.user.checkin_interval_hours);
   $('pausedCheck').checked = state.user.paused;
   renderContacts();
@@ -259,7 +273,7 @@ async function loadApp() {
 }
 
 function renderStatus() {
-  const last = new Date(state.user.last_checkin_at.replace(' ', 'T') + 'Z').getTime();
+  const last = new Date(state.user.last_checkin_at).getTime();
   const intervalMs = state.user.checkin_interval_hours * 3600 * 1000;
   const elapsed = Date.now() - last;
   const remaining = Math.max(0, intervalMs - elapsed);
@@ -291,9 +305,9 @@ function renderStatus() {
   $('lastCheckin').textContent = 'Último check-in: ' + formatDate(state.user.last_checkin_at);
 }
 
-function formatDate(sqlDate) {
-  const d = new Date(sqlDate.replace(' ', 'T') + 'Z');
-  return d.toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' });
+function formatDate(isoDate) {
+  const d = new Date(isoDate);
+  return d.toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires' });
 }
 
 $('checkinBtn').addEventListener('click', async () => {
@@ -306,13 +320,23 @@ $('checkinBtn').addEventListener('click', async () => {
 });
 
 $('saveSettings').addEventListener('click', async () => {
+  const name = $('settingsName').value.trim();
+  const default_message = $('settingsDefaultMessage').value.trim();
   await fetch('/api/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ checkin_interval_hours: $('settingsInterval').value, paused: $('pausedCheck').checked }),
+    body: JSON.stringify({
+      name,
+      default_message,
+      checkin_interval_hours: $('settingsInterval').value,
+      paused: $('pausedCheck').checked,
+    }),
   });
+  state.user.name = name;
+  state.user.default_message = default_message;
   state.user.checkin_interval_hours = Number($('settingsInterval').value);
   state.user.paused = $('pausedCheck').checked;
+  $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
   $('settingsOk').classList.remove('hidden');
   setTimeout(() => $('settingsOk').classList.add('hidden'), 2000);
   renderStatus();
@@ -327,22 +351,38 @@ function renderContacts() {
   }
   list.innerHTML = state.contacts.map(c => `
     <div class="contact" data-id="${c.id}">
-      <div class="contact-head">
-        <div>
-          <div class="contact-name">${escapeHtml(c.name)}</div>
-          <div class="contact-email">${escapeHtml(c.email)}</div>
+      <div class="contact-view" id="view-${c.id}">
+        <div class="contact-head">
+          <div>
+            <div class="contact-name">${escapeHtml(c.name)}</div>
+            <div class="contact-email">${escapeHtml(c.email)}</div>
+          </div>
+        </div>
+        <div class="contact-msg">${escapeHtml(c.message) || '<span class="muted">Sin mensaje personalizado</span>'}</div>
+        <div class="contact-actions">
+          <button class="btn-secondary edit-btn" data-id="${c.id}">Editar</button>
+          <button class="btn-secondary test-btn" data-id="${c.id}">Enviar prueba</button>
+          <button class="btn-danger delete-btn" data-id="${c.id}">Eliminar</button>
         </div>
       </div>
-      <div class="contact-msg">${escapeHtml(c.message) || '<span class="muted">Sin mensaje personalizado</span>'}</div>
-      <div class="contact-actions">
-        <button class="btn-secondary test-btn" data-id="${c.id}">Enviar prueba</button>
-        <button class="btn-danger delete-btn" data-id="${c.id}">Eliminar</button>
+      <div class="contact-edit hidden" id="edit-${c.id}">
+        <label>Nombre</label>
+        <input type="text" class="edit-name" value="${escapeHtml(c.name)}">
+        <label>Email</label>
+        <input type="email" class="edit-email" value="${escapeHtml(c.email)}">
+        <label>Mensaje personalizado</label>
+        <textarea class="edit-message">${escapeHtml(c.message)}</textarea>
+        <div class="contact-actions">
+          <button class="btn-primary save-edit-btn" data-id="${c.id}" style="margin-top:0;">Guardar cambios</button>
+          <button class="btn-secondary cancel-edit-btn" data-id="${c.id}">Cancelar</button>
+        </div>
       </div>
     </div>
   `).join('');
 
   list.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async (e) => {
     const id = e.target.dataset.id;
+    if (!confirm('¿Eliminar este contacto?')) return;
     await fetch('/api/contacts/' + id, { method: 'DELETE' });
     state.contacts = state.contacts.filter(c => String(c.id) !== id);
     renderContacts();
@@ -354,6 +394,35 @@ function renderContacts() {
     const res = await fetch('/api/contacts/' + id + '/test', { method: 'POST' });
     e.target.textContent = res.ok ? 'Enviado ✓' : 'Error al enviar';
     setTimeout(() => { e.target.textContent = 'Enviar prueba'; }, 2500);
+  }));
+
+  list.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', (e) => {
+    const id = e.target.dataset.id;
+    $('view-' + id).classList.add('hidden');
+    $('edit-' + id).classList.remove('hidden');
+  }));
+
+  list.querySelectorAll('.cancel-edit-btn').forEach(btn => btn.addEventListener('click', (e) => {
+    const id = e.target.dataset.id;
+    $('edit-' + id).classList.add('hidden');
+    $('view-' + id).classList.remove('hidden');
+  }));
+
+  list.querySelectorAll('.save-edit-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+    const id = e.target.dataset.id;
+    const container = $('edit-' + id);
+    const name = container.querySelector('.edit-name').value.trim();
+    const email = container.querySelector('.edit-email').value.trim();
+    const message = container.querySelector('.edit-message').value.trim();
+    if (!name || !email) { alert('Completá nombre y email.'); return; }
+    const res = await fetch('/api/contacts/' + id, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, message }),
+    });
+    if (!res.ok) { alert('No se pudo guardar.'); return; }
+    const contact = state.contacts.find(c => String(c.id) === id);
+    Object.assign(contact, { name, email, message });
+    renderContacts();
   }));
 }
 
@@ -376,6 +445,16 @@ $('addContact').addEventListener('click', async () => {
   state.contacts.push({ id: data.id, name, email, message });
   renderContacts();
   $('cName').value = ''; $('cEmail').value = ''; $('cMessage').value = '';
+});
+
+$('deleteAccountBtn').addEventListener('click', async () => {
+  if (!confirm('Esto borra tu cuenta, tus contactos y todo tu historial para siempre. ¿Seguro que querés continuar?')) return;
+  if (!confirm('Última confirmación: no hay forma de deshacer esto. ¿Borrar todo?')) return;
+  await fetch('/api/me', { method: 'DELETE' });
+  clearInterval(tickInterval);
+  state = null;
+  $('app').style.display = 'none';
+  $('auth').style.display = 'block';
 });
 
 function escapeHtml(s) {
