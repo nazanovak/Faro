@@ -66,6 +66,13 @@ module.exports = {
     return load().users.filter((u) => !u.paused);
   },
 
+  deleteUser(id) {
+    const data = load();
+    data.users = data.users.filter((u) => u.id !== Number(id));
+    data.contacts = data.contacts.filter((c) => c.user_id !== Number(id));
+    save(data);
+  },
+
   // ---------- contactos ----------
   getContactsByUser(userId) {
     return load().contacts.filter((c) => c.user_id === Number(userId));

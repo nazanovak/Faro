@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faro — Check-in de seguridad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1720;
+    --surface:#182430;
+    --surface-2:#1E2C39;
+    --line:#2A3B49;
+    --text:#F1EDE4;
+    --muted:#8FA3B0;
+    --amber:#E8A33D;
+    --amber-dim:#6B5225;
+    --red:#D5574A;
+    --green:#5FA88A;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    line-height:1.5;
+  }
+  h1,h2,h3,.display{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:32px 20px 80px;}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:36px;}
+  .brand .dot{width:14px;height:14px;border-radius:50%;background:var(--amber);box-shadow:0 0 14px 4px rgba(232,163,61,0.55);}
+  .brand span{font-family:'Fraunces',serif;font-size:20px;letter-spacing:0.02em;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-bottom:16px;}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;margin-top:14px;}
+  label:first-child{margin-top:0;}
+  input, select, textarea{
+    width:100%;padding:11px 13px;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:9px;color:var(--text);font-size:15px;font-family:'Inter',sans-serif;
+  }
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--amber);outline-offset:1px;border-color:var(--amber);}
+  textarea{resize:vertical;min-height:80px;}
+  button{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:15px;cursor:pointer;
+    border-radius:9px;border:none;padding:12px 18px;
+  }
+  .btn-primary{background:var(--amber);color:#1A1305;width:100%;margin-top:20px;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--text);}
+  .btn-secondary:hover{border-color:var(--muted);}
+  .btn-danger{background:transparent;border:1px solid var(--red);color:var(--red);font-size:13px;padding:7px 12px;}
+  .btn-ghost{background:transparent;color:var(--muted);font-size:13px;text-decoration:underline;padding:0;}
+  .row{display:flex;gap:10px;}
+  .row > *{flex:1;}
+  .error{color:var(--red);font-size:13px;margin-top:10px;}
+  .ok{color:var(--green);font-size:13px;margin-top:10px;}
+  .muted{color:var(--muted);font-size:13px;}
+  .toggle-link{text-align:center;margin-top:18px;color:var(--muted);font-size:14px;}
+  .toggle-link a{color:var(--amber);text-decoration:none;cursor:pointer;}
+
+  /* ---- Signature element: the pulse ring ---- */
+  .pulse-wrap{display:flex;flex-direction:column;align-items:center;padding:28px 0 8px;}
+  .pulse-ring{position:relative;width:180px;height:180px;}
+  .pulse-ring svg{transform:rotate(-90deg);width:100%;height:100%;}
+  .pulse-ring circle.track{fill:none;stroke:var(--surface-2);stroke-width:8;}
+  .pulse-ring circle.progress{fill:none;stroke:var(--amber);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 0.6s ease, stroke 0.6s ease;}
+  .pulse-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .pulse-dot{width:12px;height:12px;border-radius:50%;background:var(--amber);box-shadow:0 0 16px 5px rgba(232,163,61,0.6);animation:breathe 2.6s ease-in-out infinite;margin-bottom:8px;}
+  @keyframes breathe{0%,100%{transform:scale(1);opacity:0.9;}50%{transform:scale(1.35);opacity:0.5;}}
+  .pulse-time{font-family:'Fraunces',serif;font-size:22px;}
+  .pulse-label{color:var(--muted);font-size:12px;margin-top:2px;text-transform:uppercase;letter-spacing:0.06em;}
+  @media (prefers-reduced-motion: reduce){.pulse-dot{animation:none;}}
+
+  .contact{border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:10px;}
+  .contact-edit label{margin-top:12px;}
+  .contact-edit label:first-child{margin-top:0;}
+  .contact-head{display:flex;justify-content:space-between;align-items:center;}
+  .contact-name{font-weight:600;}
+  .contact-email{color:var(--muted);font-size:13px;}
+  .contact-msg{color:var(--text);font-size:14px;margin-top:8px;white-space:pre-wrap;}
+  .contact-actions{display:flex;gap:8px;margin-top:10px;}
+  .section-title{font-size:14px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin:28px 0 12px;}
+  .top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .status-badge{display:inline-block;font-size:12px;padding:3px 10px;border-radius:20px;margin-top:6px;}
+  .status-ok{background:rgba(95,168,138,0.15);color:var(--green);}
+  .status-warn{background:rgba(232,163,61,0.15);color:var(--amber);}
+  .status-alert{background:rgba(213,87,74,0.15);color:var(--red);}
+  #app{display:none;}
+  #auth{display:block;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand"><div class="dot"></div><span>Faro</span></div>
+
+  <!-- ================= AUTH ================= -->
+  <div id="auth">
+    <div class="card">
+      <h2 id="authTitle" style="margin:0 0 4px;">Iniciar sesión</h2>
+      <p class="muted" style="margin-top:0;">Un check-in simple para gente que vive sola. Si no avisás que estás bien, avisamos nosotros por vos.</p>
+
+      <div id="registerFields" class="hidden">
+        <label>Tu nombre</label>
+        <input id="regName" type="text" placeholder="Como te van a nombrar los mails">
+      </div>
+
+      <label>Email</label>
+      <input id="authEmail" type="email" placeholder="vos@ejemplo.com">
+      <label>Contraseña</label>
+      <input id="authPassword" type="password" placeholder="Al menos 6 caracteres">
+
+      <div id="registerInterval" class="hidden">
+        <label>Cada cuánto vas a hacer check-in</label>
+        <select id="regInterval">
+          <option value="24">Cada 24 horas</option>
+          <option value="48">Cada 48 horas</option>
+          <option value="72">Cada 3 días</option>
+          <option value="168">Cada 7 días</option>
+        </select>
+      </div>
+
+      <button class="btn-primary" id="authSubmit">Entrar</button>
+      <div class="error hidden" id="authError"></div>
+      <div class="toggle-link">
+        <span id="toggleText">¿No tenés cuenta? <a id="toggleLink">Creá una</a></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= APP ================= -->
+  <div id="app">
+    <div class="top-actions">
+      <span class="muted" id="greeting"></span>
+      <button class="btn-ghost" id="logoutBtn">Cerrar sesión</button>
+    </div>
+
+    <div class="card">
+      <div class="pulse-wrap">
+        <div class="pulse-ring">
+          <svg viewBox="0 0 180 180">
+            <circle class="track" cx="90" cy="90" r="80"></circle>
+            <circle class="progress" id="progressCircle" cx="90" cy="90" r="80"></circle>
+          </svg>
+          <div class="pulse-center">
+            <div class="pulse-dot" id="pulseDot"></div>
+            <div class="pulse-time" id="timeLeft">—</div>
+            <div class="pulse-label">hasta el límite</div>
+          </div>
+        </div>
+        <div id="statusBadge" class="status-badge status-ok">Todo en orden</div>
+      </div>
+      <button class="btn-primary" id="checkinBtn">Hice check-in — estoy bien</button>
+      <p class="muted" style="text-align:center;margin-top:10px;font-size:12px;" id="lastCheckin"></p>
+    </div>
+
+    <div class="section-title">Configuración</div>
+    <div class="card">
+      <label>Tu nombre (como te van a nombrar los mails)</label>
+      <input id="settingsName" type="text" placeholder="Ej: Naza">
+      <label style="margin-top:16px;">Cada cuánto tenés que hacer check-in</label>
+      <select id="settingsInterval">
+        <option value="24">Cada 24 horas</option>
+        <option value="48">Cada 48 horas</option>
+        <option value="72">Cada 3 días</option>
+        <option value="168">Cada 7 días</option>
+        <option value="720">Cada 30 días</option>
+      </select>
+      <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
+        <input type="checkbox" id="pausedCheck" style="width:auto;">
+        <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
+      </label>
+      <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
+      <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
+      <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
+      <div class="ok hidden" id="settingsOk">Guardado.</div>
+    </div>
+
+    <div class="card" style="border-color:var(--red);">
+      <div class="section-title" style="margin-top:0;color:var(--red);">Zona de peligro</div>
+      <p class="muted" style="margin:0 0 12px;">Borra tu cuenta, tus contactos y todo tu historial. No se puede deshacer.</p>
+      <button class="btn-danger" id="deleteAccountBtn" style="width:100%;">Borrar mi cuenta</button>
+    </div>
+
+    <div class="section-title">Tus contactos de emergencia</div>
+    <div id="contactsList"></div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Agregar contacto</h3>
+      <label>Nombre</label>
+      <input id="cName" type="text" placeholder="Nombre del contacto">
+      <label>Email</label>
+      <input id="cEmail" type="email" placeholder="contacto@ejemplo.com">
+      <label>Mensaje personalizado</label>
+      <textarea id="cMessage" placeholder="Ej: Hola María, soy Juan. Si te llegó esto es porque no hice check-in en mi app. Por favor llamame, y si no contesto, pasá por casa o avisá al encargado del edificio."></textarea>
+      <button class="btn-secondary" id="addContact" style="width:100%;margin-top:16px;">Agregar contacto</button>
+      <div class="error hidden" id="contactError"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let isRegisterMode = false;
+let state = null;
+let tickInterval = null;
+
+// ---------- Auth screen toggling ----------
+$('toggleLink').addEventListener('click', () => {
+  isRegisterMode = !isRegisterMode;
+  $('authTitle').textContent = isRegisterMode ? 'Crear cuenta' : 'Iniciar sesión';
+  $('authSubmit').textContent = isRegisterMode ? 'Crear cuenta' : 'Entrar';
+  $('registerFields').classList.toggle('hidden', !isRegisterMode);
+  $('registerInterval').classList.toggle('hidden', !isRegisterMode);
+  $('toggleText').innerHTML = isRegisterMode
+    ? '¿Ya tenés cuenta? <a id="toggleLink2">Iniciá sesión</a>'
+    : '¿No tenés cuenta? <a id="toggleLink2">Creá una</a>';
+  document.getElementById('toggleLink2').addEventListener('click', () => $('toggleLink').click());
+});
+
+$('authSubmit').addEventListener('click', async () => {
+  const email = $('authEmail').value.trim();
+  const password = $('authPassword').value;
+  $('authError').classList.add('hidden');
+
+  const url = isRegisterMode ? '/api/register' : '/api/login';
+  const body = isRegisterMode
+    ? { email, password, name: $('regName').value.trim(), checkin_interval_hours: $('regInterval').value }
+    : { email, password };
+
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) {
+    $('authError').textContent = data.error || 'Algo salió mal';
+    $('authError').classList.remove('hidden');
+    return;
+  }
+  await loadApp();
+});
+
+$('logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/logout', { method: 'POST' });
+  clearInterval(tickInterval);
+  $('app').style.display = 'none';
+  $('auth').style.display = 'block';
+});
+
+// ---------- Load app state ----------
+async function loadApp() {
+  const res = await fetch('/api/me');
+  if (!res.ok) { $('auth').style.display = 'block'; $('app').style.display = 'none'; return; }
+  state = await res.json();
+  $('auth').style.display = 'none';
+  $('app').style.display = 'block';
+  $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
+  $('settingsName').value = state.user.name || '';
+  $('settingsDefaultMessage').value = state.user.default_message || '';
+  $('settingsInterval').value = String(state.user.checkin_interval_hours);
+  $('pausedCheck').checked = state.user.paused;
+  renderContacts();
+  renderStatus();
+  clearInterval(tickInterval);
+  tickInterval = setInterval(renderStatus, 1000 * 30);
+}
+
+function renderStatus() {
+  const last = new Date(state.user.last_checkin_at).getTime();
+  const intervalMs = state.user.checkin_interval_hours * 3600 * 1000;
+  const elapsed = Date.now() - last;
+  const remaining = Math.max(0, intervalMs - elapsed);
+  const pct = Math.min(1, elapsed / intervalMs);
+
+  const r = 80, circumference = 2 * Math.PI * r;
+  const circle = $('progressCircle');
+  circle.style.strokeDasharray = circumference;
+  circle.style.strokeDashoffset = circumference * (1 - (1 - pct));
+
+  const badge = $('statusBadge');
+  if (state.user.paused) {
+    badge.textContent = 'En pausa'; badge.className = 'status-badge status-ok';
+    circle.style.stroke = 'var(--muted)';
+  } else if (pct >= 1) {
+    badge.textContent = 'Se notificó a tus contactos'; badge.className = 'status-badge status-alert';
+    circle.style.stroke = 'var(--red)';
+  } else if (pct >= 0.75) {
+    badge.textContent = 'Te queda poco tiempo'; badge.className = 'status-badge status-warn';
+    circle.style.stroke = 'var(--amber)';
+  } else {
+    badge.textContent = 'Todo en orden'; badge.className = 'status-badge status-ok';
+    circle.style.stroke = 'var(--amber)';
+  }
+
+  const hours = Math.floor(remaining / 3600000);
+  const mins = Math.floor((remaining % 3600000) / 60000);
+  $('timeLeft').textContent = state.user.paused ? '—' : (remaining <= 0 ? '0h' : `${hours}h ${mins}m`);
+  $('lastCheckin').textContent = 'Último check-in: ' + formatDate(state.user.last_checkin_at);
+}
+
+function formatDate(isoDate) {
+  const d = new Date(isoDate);
+  return d.toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires' });
+}
+
+$('checkinBtn').addEventListener('click', async () => {
+  const res = await fetch('/api/checkin', { method: 'POST' });
+  const data = await res.json();
+  state.user.last_checkin_at = data.last_checkin_at;
+  state.user.warning_sent = false;
+  state.user.alert_sent = false;
+  renderStatus();
+});
+
+$('saveSettings').addEventListener('click', async () => {
+  const name = $('settingsName').value.trim();
+  const default_message = $('settingsDefaultMessage').value.trim();
+  await fetch('/api/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      default_message,
+      checkin_interval_hours: $('settingsInterval').value,
+      paused: $('pausedCheck').checked,
+    }),
+  });
+  state.user.name = name;
+  state.user.default_message = default_message;
+  state.user.checkin_interval_hours = Number($('settingsInterval').value);
+  state.user.paused = $('pausedCheck').checked;
+  $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
+  $('settingsOk').classList.remove('hidden');
+  setTimeout(() => $('settingsOk').classList.add('hidden'), 2000);
+  renderStatus();
+});
+
+// ---------- Contacts ----------
+function renderContacts() {
+  const list = $('contactsList');
+  if (state.contacts.length === 0) {
+    list.innerHTML = '<p class="muted">Todavía no agregaste contactos. Si no hacés check-in, no hay a quién avisar.</p>';
+    return;
+  }
+  list.innerHTML = state.contacts.map(c => `
+    <div class="contact" data-id="${c.id}">
+      <div class="contact-view" id="view-${c.id}">
+        <div class="contact-head">
+          <div>
+            <div class="contact-name">${escapeHtml(c.name)}</div>
+            <div class="contact-email">${escapeHtml(c.email)}</div>
+          </div>
+        </div>
+        <div class="contact-msg">${escapeHtml(c.message) || '<span class="muted">Sin mensaje personalizado</span>'}</div>
+        <div class="contact-actions">
+          <button class="btn-secondary edit-btn" data-id="${c.id}">Editar</button>
+          <button class="btn-secondary test-btn" data-id="${c.id}">Enviar prueba</button>
+          <button class="btn-danger delete-btn" data-id="${c.id}">Eliminar</button>
+        </div>
+      </div>
+      <div class="contact-edit hidden" id="edit-${c.id}">
+        <label>Nombre</label>
+        <input type="text" class="edit-name" value="${escapeHtml(c.name)}">
+        <label>Email</label>
+        <input type="email" class="edit-email" value="${escapeHtml(c.email)}">
+        <label>Mensaje personalizado</label>
+        <textarea class="edit-message">${escapeHtml(c.message)}</textarea>
+        <div class="contact-actions">
+          <button class="btn-primary save-edit-btn" data-id="${c.id}" style="margin-top:0;">Guardar cambios</button>
+          <button class="btn-secondary cancel-edit-btn" data-id="${c.id}">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+    const id = e.target.dataset.id;
+    if (!confirm('¿Eliminar este contacto?')) return;
+    await fetch('/api/contacts/' + id, { method: 'DELETE' });
+    state.contacts = state.contacts.filter(c => String(c.id) !== id);
+    renderContacts();
+  }));
+
+  list.querySelectorAll('.test-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+    e.target.textContent = 'Enviando...';
+    const id = e.target.dataset.id;
+    const res = await fetch('/api/contacts/' + id + '/test', { method: 'POST' });
+    e.target.textContent = res.ok ? 'Enviado ✓' : 'Error al enviar';
+    setTimeout(() => { e.target.textContent = 'Enviar prueba'; }, 2500);
+  }));
+
+  list.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', (e) => {
+    const id = e.target.dataset.id;
+    $('view-' + id).classList.add('hidden');
+    $('edit-' + id).classList.remove('hidden');
+  }));
+
+  list.querySelectorAll('.cancel-edit-btn').forEach(btn => btn.addEventListener('click', (e) => {
+    const id = e.target.dataset.id;
+    $('edit-' + id).classList.add('hidden');
+    $('view-' + id).classList.remove('hidden');
+  }));
+
+  list.querySelectorAll('.save-edit-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+    const id = e.target.dataset.id;
+    const container = $('edit-' + id);
+    const name = container.querySelector('.edit-name').value.trim();
+    const email = container.querySelector('.edit-email').value.trim();
+    const message = container.querySelector('.edit-message').value.trim();
+    if (!name || !email) { alert('Completá nombre y email.'); return; }
+    const res = await fetch('/api/contacts/' + id, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, message }),
+    });
+    if (!res.ok) { alert('No se pudo guardar.'); return; }
+    const contact = state.contacts.find(c => String(c.id) === id);
+    Object.assign(contact, { name, email, message });
+    renderContacts();
+  }));
+}
+
+$('addContact').addEventListener('click', async () => {
+  const name = $('cName').value.trim();
+  const email = $('cEmail').value.trim();
+  const message = $('cMessage').value.trim();
+  $('contactError').classList.add('hidden');
+  if (!name || !email) {
+    $('contactError').textContent = 'Completá nombre y email.';
+    $('contactError').classList.remove('hidden');
+    return;
+  }
+  const res = await fetch('/api/contacts', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, message }),
+  });
+  const data = await res.json();
+  if (!res.ok) { $('contactError').textContent = data.error; $('contactError').classList.remove('hidden'); return; }
+  state.contacts.push({ id: data.id, name, email, message });
+  renderContacts();
+  $('cName').value = ''; $('cEmail').value = ''; $('cMessage').value = '';
+});
+
+$('deleteAccountBtn').addEventListener('click', async () => {
+  if (!confirm('Esto borra tu cuenta, tus contactos y todo tu historial para siempre. ¿Seguro que querés continuar?')) return;
+  if (!confirm('Última confirmación: no hay forma de deshacer esto. ¿Borrar todo?')) return;
+  await fetch('/api/me', { method: 'DELETE' });
+  clearInterval(tickInterval);
+  state = null;
+  $('app').style.display = 'none';
+  $('auth').style.display = 'block';
+});
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ---------- Boot ----------
+loadApp();
+</script>
+</body>
+</html>

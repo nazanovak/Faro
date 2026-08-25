@@ -40,6 +40,7 @@ function publicUser(u) {
     warning_sent: !!u.warning_sent,
     alert_sent: !!u.alert_sent,
     paused: !!u.paused,
+    default_message: u.default_message || '',
   };
 }
 
@@ -102,14 +103,22 @@ app.post('/api/checkin', authRequired, (req, res) => {
 });
 
 app.put('/api/settings', authRequired, (req, res) => {
-  const { name, checkin_interval_hours, paused } = req.body || {};
+  const { name, checkin_interval_hours, paused, default_message } = req.body || {};
   const user = db.findUserById(req.userId);
   db.updateUser(req.userId, {
     name: name !== undefined ? name : user.name,
     checkin_interval_hours:
       checkin_interval_hours !== undefined ? Number(checkin_interval_hours) : user.checkin_interval_hours,
     paused: paused !== undefined ? !!paused : user.paused,
+    default_message: default_message !== undefined ? default_message : user.default_message,
   });
+  res.json({ ok: true });
+});
+
+// Borra la cuenta y todos sus contactos, sin vuelta atrás
+app.delete('/api/me', authRequired, (req, res) => {
+  db.deleteUser(req.userId);
+  res.clearCookie('token');
   res.json({ ok: true });
 });
 
@@ -143,21 +152,24 @@ app.post('/api/contacts/:id/test', authRequired, async (req, res) => {
   const contact = db.findContact(req.params.id, req.userId);
   if (!contact) return res.status(404).json({ error: 'Contacto no encontrado' });
   const user = db.findUserById(req.userId);
+  const displayName = user.name || user.email;
+
+  const combinedMessage = [user.default_message, contact.message].filter(Boolean).join('\n\n');
 
   const result = await sendEmail({
     to: contact.email,
-    subject: `[PRUEBA] Mensaje de check-in de ${user.name || user.email}`,
+    subject: `[PRUEBA] Mensaje de check-in de ${displayName}`,
     html:
       '<p style="color:#b45309"><strong>Este es un mail de prueba — no significa que haya pasado nada.</strong></p>' +
       alertEmailHtml({
-        userName: user.name || user.email,
+        userName: displayName,
         contactName: contact.name,
-        personalMessage: contact.message,
+        personalMessage: combinedMessage,
         lastCheckinAt: user.last_checkin_at,
       }),
   });
 
-  if (!result.ok) return res.status(500).json({ error: 'No se pudo enviar el mail. Revisá la configuración de RESEND_API_KEY.' });
+  if (!result.ok) return res.status(500).json({ error: 'No se pudo enviar el mail. Revisá la configuración de BREVO_API_KEY.' });
   res.json({ ok: true });
 });
 

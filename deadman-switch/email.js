@@ -78,7 +78,11 @@ function emailShell({ iconGradient, title, subtitle, bodyHtml }) {
 
 function alertEmailHtml({ userName, contactName, personalMessage, lastCheckinAt }) {
   const safeMessage = linkifyPhones((personalMessage || '').replace(/\n/g, '<br>'));
-  const fecha = new Date(lastCheckinAt).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' });
+  const fecha = new Date(lastCheckinAt).toLocaleString('es-AR', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'America/Argentina/Buenos_Aires',
+  });
   const bodyHtml = `
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0 0 22px;">
           Hola ${contactName || ''},

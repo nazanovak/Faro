@@ -19,13 +19,14 @@ async function checkAllUsers() {
       console.log(`[cron] Usuario ${user.email} no hizo check-in a tiempo. Notificando a ${contacts.length} contacto(s).`);
 
       for (const c of contacts) {
+        const combinedMessage = [user.default_message, c.message].filter(Boolean).join('\n\n');
         await sendEmail({
           to: c.email,
           subject: `Alerta: ${user.name || user.email} no hizo check-in`,
           html: alertEmailHtml({
             userName: user.name || user.email,
             contactName: c.name,
-            personalMessage: c.message,
+            personalMessage: combinedMessage,
             lastCheckinAt: user.last_checkin_at,
           }),
         });
