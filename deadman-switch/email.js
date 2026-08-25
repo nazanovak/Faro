@@ -45,6 +45,11 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
+// Devuelve solo el primer nombre (para no exponer el apellido en los mails)
+function firstName(fullName) {
+  return (fullName || '').trim().split(/\s+/)[0] || '';
+}
+
 // Convierte números de teléfono sueltos en un texto a links tel: tocables,
 // así en el celular el destinatario puede tocar y llamar directo.
 function linkifyPhones(text) {
@@ -76,13 +81,24 @@ function emailShell({ iconGradient, title, subtitle, bodyHtml }) {
 </body></html>`;
 }
 
-function alertEmailHtml({ userName, contactName, personalMessage, lastCheckinAt }) {
+function alertEmailHtml({ userName, contactName, personalMessage, lastCheckinAt, location }) {
   const safeMessage = linkifyPhones((personalMessage || '').replace(/\n/g, '<br>'));
   const fecha = new Date(lastCheckinAt).toLocaleString('es-AR', {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone: 'America/Argentina/Buenos_Aires',
   });
+  const locationBlock = (location && location.lat != null && location.lng != null) ? `
+        <div style="background:#eef2ff;border-radius:12px;padding:16px 20px;margin:0 0 22px;">
+          <p style="color:#292524;font-size:13.5px;line-height:1.6;margin:0 0 6px;">
+            📍 <strong>Última ubicación conocida</strong>
+            ${location.at ? ` (${new Date(location.at).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires' })})` : ''}
+          </p>
+          <a href="https://www.google.com/maps?q=${location.lat},${location.lng}"
+             style="color:#4338ca;font-weight:600;font-size:13.5px;text-decoration:underline;">
+            Ver en Google Maps
+          </a>
+        </div>` : '';
   const bodyHtml = `
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0 0 22px;">
           Hola ${contactName || ''},
@@ -96,7 +112,7 @@ function alertEmailHtml({ userName, contactName, personalMessage, lastCheckinAt 
           <p style="color:#292524;font-size:14.5px;line-height:1.85;margin:0;">
             ${safeMessage || '(No se escribió un mensaje personalizado.)'}
           </p>
-        </div>
+        </div>${locationBlock}
         <p style="color:#a8a29e;font-size:12.5px;line-height:1.6;margin:0;">
           Esto no significa necesariamente que algo malo haya pasado — puede ser un olvido, un viaje o un problema
           con el teléfono. Pero si te parece razonable, intentá contactar a ${userName} o pasar a verificar que esté bien.
@@ -129,4 +145,4 @@ function warningEmailHtml({ userName }) {
   });
 }
 
-module.exports = { sendEmail, alertEmailHtml, warningEmailHtml };
+module.exports = { sendEmail, alertEmailHtml, warningEmailHtml, firstName };

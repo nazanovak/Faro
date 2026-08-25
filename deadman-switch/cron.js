@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const db = require('./db');
-const { sendEmail, alertEmailHtml, warningEmailHtml } = require('./email');
+const { sendEmail, alertEmailHtml, warningEmailHtml, firstName } = require('./email');
 
 const WARNING_THRESHOLD = 0.75; // avisa al usuario cuando pasó el 75% del intervalo
 
@@ -17,17 +17,23 @@ async function checkAllUsers() {
     if (elapsed >= intervalMs && !user.alert_sent) {
       const contacts = db.getContactsByUser(user.id);
       console.log(`[cron] Usuario ${user.email} no hizo check-in a tiempo. Notificando a ${contacts.length} contacto(s).`);
+      const fullName = user.name || user.email;
+      const shortName = firstName(user.name) || user.email;
+      const location = user.share_location && user.last_lat != null
+        ? { lat: user.last_lat, lng: user.last_lng, at: user.last_location_at }
+        : null;
 
       for (const c of contacts) {
         const combinedMessage = [user.default_message, c.message].filter(Boolean).join('\n\n');
         await sendEmail({
           to: c.email,
-          subject: `Alerta: ${user.name || user.email} no hizo check-in`,
+          subject: `Alerta: ${shortName} no hizo check-in`,
           html: alertEmailHtml({
-            userName: user.name || user.email,
+            userName: fullName,
             contactName: c.name,
             personalMessage: combinedMessage,
             lastCheckinAt: user.last_checkin_at,
+            location,
           }),
         });
       }

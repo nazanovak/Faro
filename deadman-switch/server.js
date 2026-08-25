@@ -7,7 +7,7 @@ const path = require('path');
 
 const db = require('./db');
 const { startScheduler } = require('./cron');
-const { sendEmail, alertEmailHtml } = require('./email');
+const { sendEmail, alertEmailHtml, firstName } = require('./email');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +41,10 @@ function publicUser(u) {
     alert_sent: !!u.alert_sent,
     paused: !!u.paused,
     default_message: u.default_message || '',
+    share_location: !!u.share_location,
+    last_lat: u.last_lat ?? null,
+    last_lng: u.last_lng ?? null,
+    last_location_at: u.last_location_at ?? null,
   };
 }
 
@@ -94,16 +98,25 @@ app.get('/api/me', authRequired, (req, res) => {
 });
 
 app.post('/api/checkin', authRequired, (req, res) => {
-  const user = db.updateUser(req.userId, {
+  const { lat, lng } = req.body || {};
+  const user = db.findUserById(req.userId);
+  const patch = {
     last_checkin_at: db.nowIso(),
     warning_sent: false,
     alert_sent: false,
-  });
-  res.json({ ok: true, last_checkin_at: user.last_checkin_at });
+  };
+  // Solo guardamos coordenadas si el usuario activó "compartir ubicación"
+  if (user.share_location && typeof lat === 'number' && typeof lng === 'number') {
+    patch.last_lat = lat;
+    patch.last_lng = lng;
+    patch.last_location_at = db.nowIso();
+  }
+  const updated = db.updateUser(req.userId, patch);
+  res.json({ ok: true, last_checkin_at: updated.last_checkin_at, last_lat: updated.last_lat, last_lng: updated.last_lng, last_location_at: updated.last_location_at });
 });
 
 app.put('/api/settings', authRequired, (req, res) => {
-  const { name, checkin_interval_hours, paused, default_message } = req.body || {};
+  const { name, checkin_interval_hours, paused, default_message, share_location } = req.body || {};
   const user = db.findUserById(req.userId);
   db.updateUser(req.userId, {
     name: name !== undefined ? name : user.name,
@@ -111,6 +124,7 @@ app.put('/api/settings', authRequired, (req, res) => {
       checkin_interval_hours !== undefined ? Number(checkin_interval_hours) : user.checkin_interval_hours,
     paused: paused !== undefined ? !!paused : user.paused,
     default_message: default_message !== undefined ? default_message : user.default_message,
+    share_location: share_location !== undefined ? !!share_location : user.share_location,
   });
   res.json({ ok: true });
 });
@@ -152,20 +166,25 @@ app.post('/api/contacts/:id/test', authRequired, async (req, res) => {
   const contact = db.findContact(req.params.id, req.userId);
   if (!contact) return res.status(404).json({ error: 'Contacto no encontrado' });
   const user = db.findUserById(req.userId);
-  const displayName = user.name || user.email;
+  const fullName = user.name || user.email;
+  const shortName = firstName(user.name) || user.email;
 
   const combinedMessage = [user.default_message, contact.message].filter(Boolean).join('\n\n');
+  const location = user.share_location && user.last_lat != null
+    ? { lat: user.last_lat, lng: user.last_lng, at: user.last_location_at }
+    : null;
 
   const result = await sendEmail({
     to: contact.email,
-    subject: `[PRUEBA] Mensaje de check-in de ${displayName}`,
+    subject: `[PRUEBA] Mensaje de check-in de ${shortName}`,
     html:
       '<p style="color:#b45309"><strong>Este es un mail de prueba — no significa que haya pasado nada.</strong></p>' +
       alertEmailHtml({
-        userName: displayName,
+        userName: fullName,
         contactName: contact.name,
         personalMessage: combinedMessage,
         lastCheckinAt: user.last_checkin_at,
+        location,
       }),
   });
 

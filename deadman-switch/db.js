@@ -46,6 +46,11 @@ module.exports = {
       warning_sent: false,
       alert_sent: false,
       paused: false,
+      default_message: '',
+      share_location: false,
+      last_lat: null,
+      last_lng: null,
+      last_location_at: null,
       created_at: nowIso(),
     };
     data.users.push(user);

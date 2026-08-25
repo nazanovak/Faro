@@ -178,6 +178,10 @@
         <input type="checkbox" id="pausedCheck" style="width:auto;">
         <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
       </label>
+      <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
+        <input type="checkbox" id="shareLocationCheck" style="width:auto;">
+        <span style="margin:0;">Incluir mi ubicación en el mail de alerta (el navegador te va a pedir permiso al hacer check-in)</span>
+      </label>
       <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
       <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
       <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
@@ -266,6 +270,7 @@ async function loadApp() {
   $('settingsDefaultMessage').value = state.user.default_message || '';
   $('settingsInterval').value = String(state.user.checkin_interval_hours);
   $('pausedCheck').checked = state.user.paused;
+  $('shareLocationCheck').checked = state.user.share_location;
   renderContacts();
   renderStatus();
   clearInterval(tickInterval);
@@ -310,10 +315,38 @@ function formatDate(isoDate) {
   return d.toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires' });
 }
 
+// Devuelve coordenadas o null; nunca tira error hacia afuera (timeout corto, falla silenciosa)
+function getLocationOrNull() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { timeout: 8000, maximumAge: 60000 }
+    );
+  });
+}
+
 $('checkinBtn').addEventListener('click', async () => {
-  const res = await fetch('/api/checkin', { method: 'POST' });
+  const btn = $('checkinBtn');
+  const originalText = btn.textContent;
+  let body = {};
+  if (state.user.share_location) {
+    btn.textContent = 'Obteniendo ubicación...';
+    const loc = await getLocationOrNull();
+    if (loc) body = loc;
+    btn.textContent = originalText;
+  }
+  const res = await fetch('/api/checkin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
   const data = await res.json();
   state.user.last_checkin_at = data.last_checkin_at;
+  state.user.last_lat = data.last_lat;
+  state.user.last_lng = data.last_lng;
+  state.user.last_location_at = data.last_location_at;
   state.user.warning_sent = false;
   state.user.alert_sent = false;
   renderStatus();
@@ -330,12 +363,14 @@ $('saveSettings').addEventListener('click', async () => {
       default_message,
       checkin_interval_hours: $('settingsInterval').value,
       paused: $('pausedCheck').checked,
+      share_location: $('shareLocationCheck').checked,
     }),
   });
   state.user.name = name;
   state.user.default_message = default_message;
   state.user.checkin_interval_hours = Number($('settingsInterval').value);
   state.user.paused = $('pausedCheck').checked;
+  state.user.share_location = $('shareLocationCheck').checked;
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
   $('settingsOk').classList.remove('hidden');
   setTimeout(() => $('settingsOk').classList.add('hidden'), 2000);
