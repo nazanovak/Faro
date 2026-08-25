@@ -33,25 +33,22 @@ npm start
 
 Abrí `http://localhost:3000` en el navegador.
 
-## 2. Configurar el envío de mails (con tu Gmail, gratis)
+## 2. Configurar el envío de mails (con Brevo, gratis)
 
-La app manda los mails usando tu propia cuenta de Gmail vía SMTP. No hace
-falta verificar ningún dominio y podés mandar a cualquier destinatario
-(Gmail permite hasta ~500 mails/día, de sobra para esto).
+La app manda los mails a través de la **API HTTPS de Brevo** (no por SMTP).
+Esto es a propósito: casi todos los hosts gratis/hobby (Railway incluido)
+bloquean las conexiones SMTP salientes para prevenir spam, así que usar una
+API que viaja por HTTPS evita ese problema por completo. El plan gratis de
+Brevo permite hasta 300 mails/día, de sobra para esto.
 
-1. Entrá a tu cuenta de Google y activá la **verificación en 2 pasos**
-   (myaccount.google.com/security) si todavía no la tenés activada — es un
-   requisito de Google para poder generar el siguiente paso.
-2. Andá a https://myaccount.google.com/apppasswords y generá una
-   **"Contraseña de aplicación"**. Te va a dar un código de 16 letras.
-3. En tu `.env`, completá:
-   - `SMTP_USER` = tu dirección de Gmail completa
-   - `SMTP_PASS` = el código de 16 letras que te dio Google (no tu contraseña normal de Gmail)
-4. Listo, no hace falta tocar `SMTP_HOST` ni `SMTP_PORT`.
-
-> Alternativa: si en algún momento tenés muchos usuarios y Gmail se queda
-> corto, `email.js` es un archivo chico y se puede migrar a un servicio como
-> Resend o SendGrid — avisame si llegás a ese punto.
+1. Creá una cuenta gratis en https://www.brevo.com
+2. Andá a **SMTP & API → API Keys** y generá una nueva API key.
+3. Andá a **Senders, Domains & Dedicated IPs → Senders**, agregá el email
+   que quieras que aparezca como remitente (puede ser tu Gmail normal) y
+   verificalo — te va a llegar un mail de confirmación con un link.
+4. En tu `.env`, completá:
+   - `BREVO_API_KEY` = la API key del paso 2
+   - `SENDER_EMAIL` = el email que verificaste en el paso 3
 
 ## 3. Desplegarlo para que corra 24/7 (recomendado: Railway)
 
@@ -61,8 +58,8 @@ un servidor. La forma más simple y gratis para este tamaño de proyecto:
 ### Railway (más simple)
 1. Subí esta carpeta a un repo de GitHub
 2. Entrá a https://railway.app → **New Project** → **Deploy from GitHub repo**
-3. En **Variables**, cargá las mismas variables de tu `.env` (`RESEND_API_KEY`,
-   `FROM_EMAIL`, `APP_NAME`, `JWT_SECRET`)
+3. En **Variables**, cargá las mismas variables de tu `.env` (`BREVO_API_KEY`,
+   `SENDER_EMAIL`, `APP_NAME`, `JWT_SECRET`)
 4. Railway detecta que es Node.js y lo levanta solo
 5. **Importante**: agregá un **Volume** en Railway y montalo en `/app`, así
    `data.sqlite` no se borra cada vez que se redeploya el servicio

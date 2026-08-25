@@ -1,41 +1,43 @@
-// Envio de mails via Gmail (SMTP), usando tu propia cuenta de Gmail con una
-// "Contraseña de aplicación". Gratis, sin límite de dominio verificado,
-// y podés mandar a cualquier destinatario (hasta ~500 mails/día).
+// Envio de mails via la API HTTPS de Brevo (antes Sendinblue).
+// Se usa API en vez de SMTP porque Railway (y otros hosts similares)
+// bloquean las conexiones SMTP salientes en sus planes gratuitos/hobby.
+// La API funciona igual en cualquier plan porque viaja por HTTPS (puerto 443).
 
-const nodemailer = require('nodemailer');
-
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const SENDER_EMAIL = process.env.SENDER_EMAIL;
 const APP_NAME = process.env.APP_NAME || 'Check-In';
 
-let transporter = null;
-function getTransporter() {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: false,
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    });
-  }
-  return transporter;
-}
-
 async function sendEmail({ to, subject, html }) {
-  if (!SMTP_USER || !SMTP_PASS) {
-    console.error('[email] Falta SMTP_USER o SMTP_PASS en .env — no se pudo enviar el mail a', to);
-    return { ok: false, error: 'missing_smtp_credentials' };
+  if (!BREVO_API_KEY || !SENDER_EMAIL) {
+    console.error('[email] Falta BREVO_API_KEY o SENDER_EMAIL en .env — no se pudo enviar el mail a', to);
+    return { ok: false, error: 'missing_brevo_credentials' };
   }
 
   try {
-    const info = await getTransporter().sendMail({
-      from: `"${APP_NAME}" <${SMTP_USER}>`,
-      to,
-      subject,
-      html,
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': BREVO_API_KEY,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { name: APP_NAME, email: SENDER_EMAIL },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
     });
-    console.log('[email] Enviado a', to, '-> id', info.messageId);
-    return { ok: true, id: info.messageId };
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('[email] Error enviando a', to, res.status, errText);
+      return { ok: false, error: errText };
+    }
+
+    const data = await res.json();
+    console.log('[email] Enviado a', to, '-> id', data.messageId);
+    return { ok: true, id: data.messageId };
   } catch (err) {
     console.error('[email] Error enviando a', to, err.message);
     return { ok: false, error: err.message };
