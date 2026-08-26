@@ -104,6 +104,7 @@
   }
   .btn-primary{background:radial-gradient(circle at 35% 30%,var(--amber-light),var(--amber));color:var(--amber-ink);width:100%;margin-top:20px;box-shadow:0 6px 16px -6px rgba(217,119,6,0.45);}
   .btn-primary:hover{filter:brightness(1.05);}
+  .btn-primary .btn-sub{display:block;font-size:11.5px;font-weight:400;opacity:0.75;margin-top:2px;}
   .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--text);}
   .btn-secondary:hover{border-color:var(--muted);}
   .btn-danger{background:transparent;border:1px solid var(--red);color:var(--red);font-size:13px;padding:7px 12px;}
@@ -296,10 +297,12 @@
         </div>
         <div id="statusBadge" class="status-badge status-ok"><span class="status-dot"></span>Todo en orden</div>
       </div>
-      <button class="btn-primary" id="checkinBtn">Encender el Faro</button>
-      <p class="muted" style="text-align:center;margin-top:6px;font-size:12px;">(Hacer check-in)</p>
-      <p class="muted" style="text-align:center;margin-top:10px;font-size:12px;" id="lastCheckin"></p>
-      <p class="muted" style="text-align:center;margin-top:4px;font-size:12px;" id="lastLocation"></p>
+      <button class="btn-primary" id="checkinBtn">
+        Encender el Faro
+        <span class="btn-sub">(Hacer check-in)</span>
+      </button>
+      <p class="muted" style="text-align:center;margin:14px 0 0;font-size:12px;" id="lastCheckin"></p>
+      <p class="muted" style="text-align:center;margin:2px 0 0;font-size:12px;" id="lastLocation"></p>
     </div>
 
     <div class="quick-nav">
@@ -314,6 +317,9 @@
         <span class="quick-card-sub" id="quickInterval">—</span>
       </button>
     </div>
+
+    <div class="section-title" id="faqSection">Preguntas frecuentes</div>
+    <div class="card" id="faqCard"></div>
   </div>
 
   <!-- ================= PÁGINA: CONTACTOS ================= -->
@@ -387,6 +393,8 @@
       <div class="card">
         <label>Tu nombre</label>
         <input id="settingsName" type="text" placeholder="Ej: Naza">
+        <label>Tu apellido</label>
+        <input id="settingsLastName" type="text" placeholder="Ej: Novak">
         <label style="margin-top:16px;">Cada cuánto tenés que hacer check-in</label>
         <select id="settingsInterval">
           <option value="24">Cada 24 horas</option>
@@ -395,10 +403,9 @@
           <option value="168">Cada 7 días</option>
           <option value="720">Cada 30 días</option>
         </select>
-        <p class="muted" style="margin:16px 0 0;font-size:12.5px;">
-          ¿Cómo funcionan los recordatorios y la ubicación? Mirá las <a href="#faqSection" id="faqLink" style="color:var(--amber);text-decoration:underline;">Preguntas frecuentes</a>.
-        </p>
-        <button class="btn-secondary" id="testReminderBtn" type="button" style="width:100%;margin-top:10px;">Enviar recordatorio de prueba</button>
+        <div style="text-align:center;">
+          <button class="btn-secondary" id="testReminderBtn" type="button" style="margin-top:10px;padding:8px 14px;font-size:13px;">Enviar recordatorio de prueba</button>
+        </div>
         <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
           <input type="checkbox" id="pausedCheck" style="width:auto;">
           <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
@@ -408,9 +415,6 @@
         <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
         <div class="ok hidden" id="settingsOk">Guardado.</div>
       </div>
-
-      <div class="section-title" id="faqSection">Preguntas frecuentes</div>
-      <div class="card" id="faqCard"></div>
 
       <div class="card" style="border-color:var(--red);margin-top:28px;">
         <div class="section-title" style="margin-top:0;color:var(--red);">Eliminar cuenta</div>
@@ -453,10 +457,6 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   closePage('page-contacts');
   closePage('page-config');
-});
-$('faqLink').addEventListener('click', (e) => {
-  e.preventDefault();
-  $('faqSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 // ---------- Auth screen toggling ----------
@@ -537,7 +537,9 @@ async function loadApp() {
   $('auth').style.display = 'none';
   $('app').style.display = 'block';
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
-  $('settingsName').value = state.user.name || '';
+  const [nameFirst, ...nameRest] = (state.user.name || '').trim().split(/\s+/);
+  $('settingsName').value = state.user.name ? nameFirst : '';
+  $('settingsLastName').value = nameRest.join(' ');
   $('settingsDefaultMessage').value = state.user.default_message || '';
   $('settingsInterval').value = String(state.user.checkin_interval_hours);
   $('pausedCheck').checked = state.user.paused;
@@ -622,10 +624,10 @@ function getLocationOrNull() {
 
 $('checkinBtn').addEventListener('click', async () => {
   const btn = $('checkinBtn');
-  const originalText = btn.textContent;
+  const originalHtml = btn.innerHTML;
   btn.textContent = 'Obteniendo ubicación...';
   const loc = await getLocationOrNull();
-  btn.textContent = originalText;
+  btn.innerHTML = originalHtml;
   const body = loc || {};
   const res = await fetch('/api/checkin', {
     method: 'POST',
@@ -645,7 +647,9 @@ $('checkinBtn').addEventListener('click', async () => {
 });
 
 $('saveSettings').addEventListener('click', async () => {
-  const name = $('settingsName').value.trim();
+  const firstName = $('settingsName').value.trim();
+  const lastName = $('settingsLastName').value.trim();
+  const name = [firstName, lastName].filter(Boolean).join(' ');
   const default_message = $('settingsDefaultMessage').value.trim();
   await fetch('/api/settings', {
     method: 'PUT',
