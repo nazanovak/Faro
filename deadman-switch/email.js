@@ -176,7 +176,7 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
   });
 }
 
-function warningEmailHtml({ userName, urgencyLabel }) {
+function warningEmailHtml({ userName, urgencyLabel, title }) {
   const urgencyLine = urgencyLabel
     ? `Te queda ${urgencyLabel} para encender el Faro.`
     : 'Todavía no encendiste el Faro.';
@@ -193,7 +193,7 @@ function warningEmailHtml({ userName, urgencyLabel }) {
         </p>`;
   return emailShell({
     iconGradient: 'radial-gradient(circle at 35% 30%,#fef3c7,#f59e0b)',
-    title: 'Falta poco para dar tu señal',
+    title: title || 'Falta poco para tu check-in',
     subtitle: '',
     bodyHtml,
   });

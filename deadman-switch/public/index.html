@@ -180,6 +180,30 @@
   .quick-card svg{width:22px;height:22px;color:var(--amber);}
   .quick-card-title{font-weight:600;font-size:13.5px;}
   .quick-card-sub{font-size:11.5px;color:var(--muted);}
+  .quick-card{font-family:'Inter',sans-serif;width:100%;}
+
+  /* ---- Páginas internas (Contactos / Configuración) ---- */
+  .page-overlay{
+    position:fixed;inset:0;background:var(--bg);z-index:50;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+    display:none;
+  }
+  .page-overlay.open{display:block;}
+  .page-header{
+    position:sticky;top:0;background:var(--bg);z-index:5;
+    display:flex;align-items:center;gap:12px;padding:18px 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .page-back{
+    width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface);
+    color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:none;
+  }
+  .page-back:hover{border-color:var(--amber);}
+  .page-back svg{width:18px;height:18px;}
+  .page-title{font-family:Georgia,'Times New Roman',serif;font-size:19px;}
+  .page-body{max-width:520px;margin:0 auto;padding:20px 20px 60px;}
+  .page-body .section-title:first-child{margin-top:0;}
+  body.page-locked{overflow:hidden;}
 </style>
 </head>
 <body>
@@ -279,99 +303,120 @@
     </div>
 
     <div class="quick-nav">
-      <a href="#contactsSection" class="quick-card">
+      <button type="button" class="quick-card" id="openContactsPage">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
         <span class="quick-card-title">Contactos</span>
         <span class="quick-card-sub" id="quickContactsCount">—</span>
-      </a>
-      <a href="#configSection" class="quick-card">
+      </button>
+      <button type="button" class="quick-card" id="openConfigPage">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         <span class="quick-card-title">Configuración</span>
         <span class="quick-card-sub" id="quickInterval">—</span>
-      </a>
+      </button>
     </div>
+  </div>
 
-    <div class="section-title" id="configSection">Configuración</div>
-    <div class="card">
-      <label>Tu nombre</label>
-      <input id="settingsName" type="text" placeholder="Ej: Naza">
-      <label style="margin-top:16px;">Cada cuánto tenés que hacer check-in</label>
-      <select id="settingsInterval">
-        <option value="24">Cada 24 horas</option>
-        <option value="48">Cada 48 horas</option>
-        <option value="72">Cada 3 días</option>
-        <option value="168">Cada 7 días</option>
-        <option value="720">Cada 30 días</option>
-      </select>
-      <p class="muted" style="margin:16px 0 0;font-size:12.5px;">
-        ¿Cómo funcionan los recordatorios y la ubicación? Mirá las <a href="#faqSection" style="color:var(--amber);text-decoration:underline;">Preguntas frecuentes</a>.
+  <!-- ================= PÁGINA: CONTACTOS ================= -->
+  <div class="page-overlay" id="page-contacts">
+    <div class="page-header">
+      <button type="button" class="page-back" id="closeContactsPage" aria-label="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <span class="page-title">Contactos</span>
+    </div>
+    <div class="page-body">
+      <div class="section-title" id="contactsSection" style="margin-top:0;">Tus contactos de emergencia</div>
+      <div id="contactsList"></div>
+
+      <div class="card">
+        <div class="disclosure-head" id="addContactToggle" aria-expanded="false">
+          <h3>Agregar contacto</h3>
+          <svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="disclosure-body" id="addContactBody">
+          <label>Nombre</label>
+          <input id="cName" type="text" placeholder="Nombre del contacto">
+          <label>Email</label>
+          <input id="cEmail" type="email" placeholder="contacto@ejemplo.com">
+          <label>Mensaje personalizado</label>
+          <textarea id="cMessage" placeholder="Ej: Hola María, soy Juan. Si te llegó esto es porque no hice check-in en mi app. Por favor llamame, y si no contesto, pasá por casa o avisá al encargado del edificio."></textarea>
+          <button class="btn-secondary" id="addContact" style="width:100%;margin-top:16px;">Agregar contacto</button>
+          <div class="error hidden" id="contactError"></div>
+        </div>
+      </div>
+
+      <div class="section-title">Personas de contacto <span class="muted" id="refPeopleCount" style="font-weight:400;"></span></div>
+      <p class="muted" style="margin:-4px 4px 12px;font-size:12.5px;">
+        No se les manda ningún mail. Sus datos (nombre, relación y teléfono) se incluyen dentro del mail
+        que reciben tus contactos de emergencia, para que sepan a quién más recurrir.
       </p>
-      <button class="btn-secondary" id="testReminderBtn" type="button" style="width:100%;margin-top:10px;">Enviar recordatorio de prueba</button>
-      <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
-        <input type="checkbox" id="pausedCheck" style="width:auto;">
-        <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
-      </label>
-      <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
-      <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
-      <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
-      <div class="ok hidden" id="settingsOk">Guardado.</div>
+      <div id="refPeopleList"></div>
+
+      <div class="card" id="addRefPersonCard">
+        <div class="disclosure-head" id="addRefPersonToggle" aria-expanded="false">
+          <h3>Agregar persona de contacto</h3>
+          <svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="disclosure-body" id="addRefPersonBody">
+          <label>Nombre</label>
+          <input id="rName" type="text" placeholder="Nombre de la persona">
+          <label>Relación</label>
+          <input id="rRelation" type="text" placeholder="Ej: Madre, hermano, amigo, pareja...">
+          <label>Teléfono</label>
+          <input id="rPhone" type="tel" placeholder="+54 9 11 xxxx-xxxx">
+          <label>Email (opcional)</label>
+          <input id="rEmail" type="email" placeholder="persona@ejemplo.com">
+          <p class="muted" style="margin:-8px 0 0;font-size:12.5px;">Cargá al menos un teléfono o un email.</p>
+          <button class="btn-secondary" id="addRefPerson" style="width:100%;margin-top:16px;">Agregar persona</button>
+          <div class="error hidden" id="refPersonError"></div>
+        </div>
+      </div>
+      <p class="muted hidden" id="refPeopleLimitMsg" style="margin-top:-6px;">Llegaste al máximo de 5 personas de contacto. Eliminá alguna para agregar otra.</p>
     </div>
+  </div>
 
-    <div class="section-title" id="contactsSection">Tus contactos de emergencia</div>
-    <div id="contactsList"></div>
-
-    <div class="card">
-      <div class="disclosure-head" id="addContactToggle" aria-expanded="false">
-        <h3>Agregar contacto</h3>
-        <svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-      </div>
-      <div class="disclosure-body" id="addContactBody">
-        <label>Nombre</label>
-        <input id="cName" type="text" placeholder="Nombre del contacto">
-        <label>Email</label>
-        <input id="cEmail" type="email" placeholder="contacto@ejemplo.com">
-        <label>Mensaje personalizado</label>
-        <textarea id="cMessage" placeholder="Ej: Hola María, soy Juan. Si te llegó esto es porque no hice check-in en mi app. Por favor llamame, y si no contesto, pasá por casa o avisá al encargado del edificio."></textarea>
-        <button class="btn-secondary" id="addContact" style="width:100%;margin-top:16px;">Agregar contacto</button>
-        <div class="error hidden" id="contactError"></div>
-      </div>
+  <!-- ================= PÁGINA: CONFIGURACIÓN ================= -->
+  <div class="page-overlay" id="page-config">
+    <div class="page-header">
+      <button type="button" class="page-back" id="closeConfigPage" aria-label="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <span class="page-title">Configuración</span>
     </div>
-
-    <div class="section-title">Personas de contacto <span class="muted" id="refPeopleCount" style="font-weight:400;"></span></div>
-    <p class="muted" style="margin:-4px 4px 12px;font-size:12.5px;">
-      No se les manda ningún mail. Sus datos (nombre, relación y teléfono) se incluyen dentro del mail
-      que reciben tus contactos de emergencia, para que sepan a quién más recurrir.
-    </p>
-    <div id="refPeopleList"></div>
-
-    <div class="card" id="addRefPersonCard">
-      <div class="disclosure-head" id="addRefPersonToggle" aria-expanded="false">
-        <h3>Agregar persona de contacto</h3>
-        <svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    <div class="page-body">
+      <div class="card">
+        <label>Tu nombre</label>
+        <input id="settingsName" type="text" placeholder="Ej: Naza">
+        <label style="margin-top:16px;">Cada cuánto tenés que hacer check-in</label>
+        <select id="settingsInterval">
+          <option value="24">Cada 24 horas</option>
+          <option value="48">Cada 48 horas</option>
+          <option value="72">Cada 3 días</option>
+          <option value="168">Cada 7 días</option>
+          <option value="720">Cada 30 días</option>
+        </select>
+        <p class="muted" style="margin:16px 0 0;font-size:12.5px;">
+          ¿Cómo funcionan los recordatorios y la ubicación? Mirá las <a href="#faqSection" id="faqLink" style="color:var(--amber);text-decoration:underline;">Preguntas frecuentes</a>.
+        </p>
+        <button class="btn-secondary" id="testReminderBtn" type="button" style="width:100%;margin-top:10px;">Enviar recordatorio de prueba</button>
+        <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
+          <input type="checkbox" id="pausedCheck" style="width:auto;">
+          <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
+        </label>
+        <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
+        <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
+        <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
+        <div class="ok hidden" id="settingsOk">Guardado.</div>
       </div>
-      <div class="disclosure-body" id="addRefPersonBody">
-        <label>Nombre</label>
-        <input id="rName" type="text" placeholder="Nombre de la persona">
-        <label>Relación</label>
-        <input id="rRelation" type="text" placeholder="Ej: Madre, hermano, amigo, pareja...">
-        <label>Teléfono</label>
-        <input id="rPhone" type="tel" placeholder="+54 9 11 xxxx-xxxx">
-        <label>Email (opcional)</label>
-        <input id="rEmail" type="email" placeholder="persona@ejemplo.com">
-        <p class="muted" style="margin:-8px 0 0;font-size:12.5px;">Cargá al menos un teléfono o un email.</p>
-        <button class="btn-secondary" id="addRefPerson" style="width:100%;margin-top:16px;">Agregar persona</button>
-        <div class="error hidden" id="refPersonError"></div>
+
+      <div class="section-title" id="faqSection">Preguntas frecuentes</div>
+      <div class="card" id="faqCard"></div>
+
+      <div class="card" style="border-color:var(--red);margin-top:28px;">
+        <div class="section-title" style="margin-top:0;color:var(--red);">Eliminar cuenta</div>
+        <p class="muted" style="margin:0 0 12px;">Borra tu cuenta, tus contactos y todo tu historial. No se puede deshacer.</p>
+        <button class="btn-danger" id="deleteAccountBtn" style="width:100%;">Borrar mi cuenta</button>
       </div>
-    </div>
-    <p class="muted hidden" id="refPeopleLimitMsg" style="margin-top:-6px;">Llegaste al máximo de 5 personas de contacto. Eliminá alguna para agregar otra.</p>
-
-    <div class="section-title" id="faqSection">Preguntas frecuentes</div>
-    <div class="card" id="faqCard"></div>
-
-    <div class="card" style="border-color:var(--red);margin-top:28px;">
-      <div class="section-title" style="margin-top:0;color:var(--red);">Eliminar cuenta</div>
-      <p class="muted" style="margin:0 0 12px;">Borra tu cuenta, tus contactos y todo tu historial. No se puede deshacer.</p>
-      <button class="btn-danger" id="deleteAccountBtn" style="width:100%;">Borrar mi cuenta</button>
     </div>
   </div>
 
@@ -389,6 +434,29 @@ $('themeToggle').addEventListener('click', () => {
   const next = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   try { localStorage.setItem('faro-theme', next); } catch (e) {}
+});
+
+// ---------- Páginas internas (Contactos / Configuración) ----------
+function openPage(id) {
+  $(id).classList.add('open');
+  document.body.classList.add('page-locked');
+}
+function closePage(id) {
+  $(id).classList.remove('open');
+  document.body.classList.remove('page-locked');
+}
+$('openContactsPage').addEventListener('click', () => openPage('page-contacts'));
+$('openConfigPage').addEventListener('click', () => openPage('page-config'));
+$('closeContactsPage').addEventListener('click', () => closePage('page-contacts'));
+$('closeConfigPage').addEventListener('click', () => closePage('page-config'));
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  closePage('page-contacts');
+  closePage('page-config');
+});
+$('faqLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  $('faqSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 // ---------- Auth screen toggling ----------
@@ -455,6 +523,8 @@ $('authSubmit').addEventListener('click', async () => {
 $('logoutBtn').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' });
   clearInterval(tickInterval);
+  closePage('page-contacts');
+  closePage('page-config');
   $('app').style.display = 'none';
   $('auth').style.display = 'block';
 });
@@ -918,6 +988,8 @@ $('deleteAccountBtn').addEventListener('click', async () => {
   if (!confirm('Última confirmación: no hay forma de deshacer esto. ¿Borrar todo?')) return;
   await fetch('/api/me', { method: 'DELETE' });
   clearInterval(tickInterval);
+  closePage('page-contacts');
+  closePage('page-config');
   state = null;
   $('app').style.display = 'none';
   $('auth').style.display = 'block';
