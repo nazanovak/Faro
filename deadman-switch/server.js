@@ -181,6 +181,7 @@ app.post('/api/contacts/:id/test', authRequired, async (req, res) => {
       '<p style="color:#b45309"><strong>Este es un mail de prueba — no significa que haya pasado nada.</strong></p>' +
       alertEmailHtml({
         userName: fullName,
+        shortName,
         contactName: contact.name,
         personalMessage: combinedMessage,
         lastCheckinAt: user.last_checkin_at,

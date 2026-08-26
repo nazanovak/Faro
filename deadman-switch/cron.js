@@ -30,6 +30,7 @@ async function checkAllUsers() {
           subject: `Alerta: ${shortName} no hizo check-in`,
           html: alertEmailHtml({
             userName: fullName,
+            shortName,
             contactName: c.name,
             personalMessage: combinedMessage,
             lastCheckinAt: user.last_checkin_at,

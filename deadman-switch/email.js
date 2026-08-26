@@ -81,7 +81,8 @@ function emailShell({ iconGradient, title, subtitle, bodyHtml }) {
 </body></html>`;
 }
 
-function alertEmailHtml({ userName, contactName, personalMessage, lastCheckinAt, location }) {
+function alertEmailHtml({ userName, shortName, contactName, personalMessage, lastCheckinAt, location }) {
+  const titleName = shortName || userName;
   const safeMessage = linkifyPhones((personalMessage || '').replace(/\n/g, '<br>'));
   const fecha = new Date(lastCheckinAt).toLocaleString('es-AR', {
     dateStyle: 'medium',
@@ -119,7 +120,7 @@ function alertEmailHtml({ userName, contactName, personalMessage, lastCheckinAt,
         </p>`;
   return emailShell({
     iconGradient: 'radial-gradient(circle at 35% 30%,#fde68a,#d97706)',
-    title: `${userName} no hizo check-in`,
+    title: `${titleName} no hizo check-in`,
     subtitle: fecha,
     bodyHtml,
   });
