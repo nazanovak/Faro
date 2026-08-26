@@ -71,7 +71,7 @@ function emailShell({ iconGradient, title, subtitle, bodyHtml }) {
         <div style="text-align:center;margin-bottom:20px;">
           <div style="width:64px;height:64px;border-radius:50%;background:${iconGradient};margin:0 auto 16px;box-shadow:0 0 0 6px #fef3c7;"></div>
           <h1 style="color:#1c1917;font-size:21px;margin:0;font-weight:400;font-family:Georgia,'Times New Roman',serif;">${title}</h1>
-          <p style="color:#a8a29e;font-size:12.5px;margin:6px 0 0;">${subtitle}</p>
+          ${subtitle ? `<p style="color:#a8a29e;font-size:12.5px;margin:6px 0 0;">${subtitle}</p>` : ''}
         </div>
         ${bodyHtml}
       </div>
@@ -87,13 +87,14 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
   const fecha = new Date(lastCheckinAt).toLocaleString('es-AR', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    hour12: false,
     timeZone: 'America/Argentina/Buenos_Aires',
   });
   const locationBlock = (location && location.lat != null && location.lng != null) ? `
         <div style="background:#eef2ff;border-radius:12px;padding:16px 20px;margin:0 0 22px;">
           <p style="color:#292524;font-size:13.5px;line-height:1.6;margin:0 0 6px;">
             📍 <strong>Última ubicación conocida</strong>
-            ${location.at ? ` (${new Date(location.at).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires' })})` : ''}
+            ${location.at ? ` (${new Date(location.at).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short', hour12: false, timeZone: 'America/Argentina/Buenos_Aires' })})` : ''}
           </p>
           <a href="https://www.google.com/maps?q=${location.lat},${location.lng}"
              style="color:#4338ca;font-weight:600;font-size:13.5px;text-decoration:underline;">
@@ -121,7 +122,7 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
   return emailShell({
     iconGradient: 'radial-gradient(circle at 35% 30%,#fde68a,#d97706)',
     title: `${titleName} no hizo check-in`,
-    subtitle: fecha,
+    subtitle: '',
     bodyHtml,
   });
 }
