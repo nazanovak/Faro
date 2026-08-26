@@ -61,8 +61,20 @@ un servidor. La forma más simple y gratis para este tamaño de proyecto:
 3. En **Variables**, cargá las mismas variables de tu `.env` (`BREVO_API_KEY`,
    `SENDER_EMAIL`, `APP_NAME`, `JWT_SECRET`)
 4. Railway detecta que es Node.js y lo levanta solo
-5. **Importante**: agregá un **Volume** en Railway y montalo en `/app`, así
-   `data.sqlite` no se borra cada vez que se redeploya el servicio
+5. **Importante, para que no se te borren los datos en cada redeploy**:
+   - Andá al **canvas** del proyecto (la vista con las cajas de los servicios,
+     no adentro de la configuración de uno) y hacé click derecho en un espacio
+     vacío → creá un **Volume** (o abrí la paleta de comandos con `Cmd+K` /
+     `Ctrl+K` y buscá "volume")
+   - Conectalo a este servicio y poné `/data` como mount path
+   - En la pestaña **Variables** del servicio, agregá `DATA_DIR=/data`
+   - Con eso, `data.json` (usuarios y contactos) queda guardado en el Volume,
+     que persiste aunque redeployes o reinicies el servicio. Si no configurás
+     esto, el archivo vive en el disco temporal del contenedor y se pierde en
+     cada deploy nuevo.
+   - Hacelo **antes** de cargar datos reales: si conectás el volumen después
+     de haber usado la app un tiempo, arranca con una carpeta vacía y perdés
+     lo que tenías (a menos que migres el `data.json` a mano).
 
 ### Render (alternativa)
 Mismo proceso: **New Web Service** desde el repo, variables de entorno iguales,

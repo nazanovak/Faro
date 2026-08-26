@@ -5,7 +5,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'data.json');
+// DATA_DIR permite guardar data.json fuera de la carpeta del código,
+// por ejemplo en un Volume persistente de Railway (así los datos
+// sobreviven a los redeploys). Si no se configura, usa la carpeta del
+// proyecto como antes (sirve para correrlo local).
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const DB_PATH = path.join(DATA_DIR, 'data.json');
 
 function load() {
   if (!fs.existsSync(DB_PATH)) {
@@ -15,6 +20,7 @@ function load() {
 }
 
 function save(data) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 
