@@ -189,7 +189,7 @@ function warningEmailHtml({ userName, urgencyLabel }) {
           se les va a avisar automáticamente a tus contactos de emergencia.
         </p>
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0;">
-          Entrá a la app y tocá <strong style="color:#1c1917;">"Hacer check-in"</strong> para reiniciar el contador.
+          Entrá a la app y tocá <strong style="color:#1c1917;">"Encender el Faro"</strong> para reiniciar el contador.
         </p>`;
   return emailShell({
     iconGradient: 'radial-gradient(circle at 35% 30%,#fef3c7,#f59e0b)',

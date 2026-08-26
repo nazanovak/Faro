@@ -119,7 +119,7 @@ app.post('/api/checkin', authRequired, (req, res) => {
 });
 
 app.put('/api/settings', authRequired, (req, res) => {
-  const { name, checkin_interval_hours, paused, default_message, share_location } = req.body || {};
+  const { name, checkin_interval_hours, paused, default_message } = req.body || {};
   const user = db.findUserById(req.userId);
   db.updateUser(req.userId, {
     name: name !== undefined ? name : user.name,
@@ -127,9 +127,9 @@ app.put('/api/settings', authRequired, (req, res) => {
       checkin_interval_hours !== undefined ? Number(checkin_interval_hours) : user.checkin_interval_hours,
     paused: paused !== undefined ? !!paused : user.paused,
     default_message: default_message !== undefined ? default_message : user.default_message,
-    share_location: share_location !== undefined ? !!share_location : user.share_location,
-    // Los recordatorios (mitad de plazo, 1h y 15min antes) siempre están
-    // activos, no son configurables desde acá.
+    // La ubicación y los recordatorios siempre están activos por defecto,
+    // no son configurables desde acá.
+    share_location: true,
     send_reminders: true,
   });
   res.json({ ok: true });

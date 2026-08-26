@@ -60,7 +60,7 @@ module.exports = {
       alert_sent: false,
       paused: false,
       default_message: '',
-      share_location: false,
+      share_location: true,
       last_lat: null,
       last_lng: null,
       last_location_at: null,

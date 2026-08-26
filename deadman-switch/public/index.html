@@ -156,6 +156,12 @@
   .disclosure-head[aria-expanded="true"] .disclosure-chevron{transform:rotate(180deg);}
   .disclosure-body{overflow:hidden;max-height:0;transition:max-height 0.25s ease;}
   .disclosure-body.open{max-height:600px;}
+
+  .pw-wrap{position:relative;}
+  .pw-wrap input{padding-right:44px;}
+  .pw-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:var(--muted);cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center;}
+  .pw-toggle:hover{color:var(--text);}
+  .pw-toggle svg{width:18px;height:18px;}
 </style>
 </head>
 <body>
@@ -178,27 +184,43 @@
   <!-- ================= AUTH ================= -->
   <div id="auth">
     <div class="card">
-      <h2 id="authTitle" style="margin:0 0 4px;">Iniciar sesión</h2>
-      <p class="muted" style="margin-top:0;">Un check-in simple para gente que vive sola. Si no avisás que estás bien, avisamos nosotros por vos.</p>
+      <p class="muted" style="margin-top:0;">Una señal de vida simple para quienes viven solos. Si no avisás que estás bien, avisamos nosotros por vos.</p>
+      <h2 id="authTitle" style="margin:16px 0 4px;">Iniciar sesión</h2>
 
       <div id="registerFields" class="hidden">
-        <label>Tu nombre</label>
-        <input id="regName" type="text" placeholder="Como te van a nombrar los mails">
+        <div class="row">
+          <div>
+            <label>Nombre</label>
+            <input id="regFirstName" type="text" placeholder="Tu nombre">
+          </div>
+          <div>
+            <label>Apellido</label>
+            <input id="regLastName" type="text" placeholder="Tu apellido">
+          </div>
+        </div>
       </div>
 
       <label>Email</label>
       <input id="authEmail" type="email" placeholder="vos@ejemplo.com">
-      <label>Contraseña</label>
-      <input id="authPassword" type="password" placeholder="Al menos 6 caracteres">
 
-      <div id="registerInterval" class="hidden">
-        <label>Cada cuánto vas a hacer check-in</label>
-        <select id="regInterval">
-          <option value="24">Cada 24 horas</option>
-          <option value="48">Cada 48 horas</option>
-          <option value="72">Cada 3 días</option>
-          <option value="168">Cada 7 días</option>
-        </select>
+      <label>Contraseña</label>
+      <div class="pw-wrap">
+        <input id="authPassword" type="password" placeholder="Al menos 6 caracteres">
+        <button type="button" class="pw-toggle" data-target="authPassword" aria-label="Mostrar contraseña">
+          <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg class="icon-eye-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.6 21.6 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 5c7 0 11 7 11 7a21.7 21.7 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><path d="M1 1l22 22"></path></svg>
+        </button>
+      </div>
+
+      <div id="registerPasswordConfirm" class="hidden">
+        <label>Repetir contraseña</label>
+        <div class="pw-wrap">
+          <input id="authPasswordConfirm" type="password" placeholder="Repetí la contraseña">
+          <button type="button" class="pw-toggle" data-target="authPasswordConfirm" aria-label="Mostrar contraseña">
+            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <svg class="icon-eye-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.6 21.6 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 5c7 0 11 7 11 7a21.7 21.7 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><path d="M1 1l22 22"></path></svg>
+          </button>
+        </div>
       </div>
 
       <button class="btn-primary" id="authSubmit">Entrar</button>
@@ -208,6 +230,7 @@
       </div>
     </div>
   </div>
+
 
   <!-- ================= APP ================= -->
   <div id="app">
@@ -231,13 +254,15 @@
         </div>
         <div id="statusBadge" class="status-badge status-ok"><span class="status-dot"></span>Todo en orden</div>
       </div>
-      <button class="btn-primary" id="checkinBtn">Hacer check-in</button>
+      <button class="btn-primary" id="checkinBtn">Encender el Faro</button>
+      <p class="muted" style="text-align:center;margin-top:6px;font-size:12px;">(Hacer check-in)</p>
       <p class="muted" style="text-align:center;margin-top:10px;font-size:12px;" id="lastCheckin"></p>
+      <p class="muted" style="text-align:center;margin-top:4px;font-size:12px;" id="lastLocation"></p>
     </div>
 
     <div class="section-title">Configuración</div>
     <div class="card">
-      <label>Tu nombre (como te van a nombrar los mails)</label>
+      <label>Tu nombre</label>
       <input id="settingsName" type="text" placeholder="Ej: Naza">
       <label style="margin-top:16px;">Cada cuánto tenés que hacer check-in</label>
       <select id="settingsInterval">
@@ -255,10 +280,9 @@
         <input type="checkbox" id="pausedCheck" style="width:auto;">
         <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
       </label>
-      <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
-        <input type="checkbox" id="shareLocationCheck" style="width:auto;">
-        <span style="margin:0;">Incluir mi ubicación en el mail de alerta (el navegador te va a pedir permiso al hacer check-in)</span>
-      </label>
+      <p class="muted" style="margin:16px 0 0;font-size:12.5px;">
+        Por defecto incluimos tu ubicación en el mail de alerta (el navegador te va a pedir permiso al hacer check-in). No hace falta activar nada.
+      </p>
       <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
       <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
       <p class="muted" style="margin:10px 0 0;font-size:12px;">
@@ -345,11 +369,23 @@ $('toggleLink').addEventListener('click', () => {
   $('authTitle').textContent = isRegisterMode ? 'Crear cuenta' : 'Iniciar sesión';
   $('authSubmit').textContent = isRegisterMode ? 'Crear cuenta' : 'Entrar';
   $('registerFields').classList.toggle('hidden', !isRegisterMode);
-  $('registerInterval').classList.toggle('hidden', !isRegisterMode);
+  $('registerPasswordConfirm').classList.toggle('hidden', !isRegisterMode);
   $('toggleText').innerHTML = isRegisterMode
     ? '¿Ya tenés cuenta? <a id="toggleLink2">Iniciá sesión</a>'
     : '¿No tenés cuenta? <a id="toggleLink2">Creá una</a>';
   document.getElementById('toggleLink2').addEventListener('click', () => $('toggleLink').click());
+});
+
+// ---------- Mostrar / ocultar contraseña ----------
+document.querySelectorAll('.pw-toggle').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const target = $(btn.dataset.target);
+    const showing = target.type === 'text';
+    target.type = showing ? 'password' : 'text';
+    btn.querySelector('.icon-eye').classList.toggle('hidden', !showing);
+    btn.querySelector('.icon-eye-off').classList.toggle('hidden', showing);
+    btn.setAttribute('aria-label', showing ? 'Mostrar contraseña' : 'Ocultar contraseña');
+  });
 });
 
 $('authSubmit').addEventListener('click', async () => {
@@ -357,9 +393,25 @@ $('authSubmit').addEventListener('click', async () => {
   const password = $('authPassword').value;
   $('authError').classList.add('hidden');
 
+  if (isRegisterMode) {
+    const firstName = $('regFirstName').value.trim();
+    const lastName = $('regLastName').value.trim();
+    const passwordConfirm = $('authPasswordConfirm').value;
+    if (!firstName || !lastName) {
+      $('authError').textContent = 'Completá nombre y apellido.';
+      $('authError').classList.remove('hidden');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      $('authError').textContent = 'Las contraseñas no coinciden.';
+      $('authError').classList.remove('hidden');
+      return;
+    }
+  }
+
   const url = isRegisterMode ? '/api/register' : '/api/login';
   const body = isRegisterMode
-    ? { email, password, name: $('regName').value.trim(), checkin_interval_hours: $('regInterval').value }
+    ? { email, password, name: `${$('regFirstName').value.trim()} ${$('regLastName').value.trim()}`.trim() }
     : { email, password };
 
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -391,7 +443,6 @@ async function loadApp() {
   $('settingsDefaultMessage').value = state.user.default_message || '';
   $('settingsInterval').value = String(state.user.checkin_interval_hours);
   $('pausedCheck').checked = state.user.paused;
-  $('shareLocationCheck').checked = state.user.share_location;
   renderContacts();
   renderReferencePeople();
   renderStatus();
@@ -436,6 +487,14 @@ function renderStatus() {
     ? '—'
     : (remaining <= 0 ? '0h 0m 0s' : `${hours}h ${mins}m ${secs}s`);
   $('lastCheckin').textContent = 'Último check-in: ' + formatDate(state.user.last_checkin_at);
+
+  const locEl = $('lastLocation');
+  if (state.user.last_lat != null && state.user.last_lng != null) {
+    const mapsUrl = `https://www.google.com/maps?q=${state.user.last_lat},${state.user.last_lng}`;
+    locEl.innerHTML = `Última ubicación: <a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--amber);text-decoration:underline;">ver en Google Maps</a>`;
+  } else {
+    locEl.textContent = '';
+  }
 }
 
 function formatDate(isoDate) {
@@ -458,13 +517,10 @@ function getLocationOrNull() {
 $('checkinBtn').addEventListener('click', async () => {
   const btn = $('checkinBtn');
   const originalText = btn.textContent;
-  let body = {};
-  if (state.user.share_location) {
-    btn.textContent = 'Obteniendo ubicación...';
-    const loc = await getLocationOrNull();
-    if (loc) body = loc;
-    btn.textContent = originalText;
-  }
+  btn.textContent = 'Obteniendo ubicación...';
+  const loc = await getLocationOrNull();
+  btn.textContent = originalText;
+  const body = loc || {};
   const res = await fetch('/api/checkin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -493,14 +549,12 @@ $('saveSettings').addEventListener('click', async () => {
       default_message,
       checkin_interval_hours: $('settingsInterval').value,
       paused: $('pausedCheck').checked,
-      share_location: $('shareLocationCheck').checked,
     }),
   });
   state.user.name = name;
   state.user.default_message = default_message;
   state.user.checkin_interval_hours = Number($('settingsInterval').value);
   state.user.paused = $('pausedCheck').checked;
-  state.user.share_location = $('shareLocationCheck').checked;
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
   $('settingsOk').classList.remove('hidden');
   setTimeout(() => $('settingsOk').classList.add('hidden'), 2000);
