@@ -162,6 +162,12 @@
   .pw-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:var(--muted);cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center;}
   .pw-toggle:hover{color:var(--text);}
   .pw-toggle svg{width:18px;height:18px;}
+
+  .faq-item + .faq-item{border-top:1px solid var(--line);}
+  .faq-q{padding:16px 0;}
+  .faq-q:first-child{padding-top:4px;}
+  .faq-q span{font-size:14.5px;font-weight:600;padding-right:12px;}
+  .faq-a p{margin:0 0 16px;font-size:13.5px;line-height:1.65;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -273,21 +279,15 @@
         <option value="720">Cada 30 días</option>
       </select>
       <p class="muted" style="margin:16px 0 0;font-size:12.5px;">
-        Por defecto te avisamos por mail cuando falte poco para hacer check-in (a mitad de plazo, 1 hora antes y 15 minutos antes). No hace falta activar nada.
+        ¿Cómo funcionan los recordatorios y la ubicación? Mirá las <a href="#faqSection" style="color:var(--amber);text-decoration:underline;">Preguntas frecuentes</a>.
       </p>
       <button class="btn-secondary" id="testReminderBtn" type="button" style="width:100%;margin-top:10px;">Enviar recordatorio de prueba</button>
       <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
         <input type="checkbox" id="pausedCheck" style="width:auto;">
         <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
       </label>
-      <p class="muted" style="margin:16px 0 0;font-size:12.5px;">
-        Por defecto incluimos tu ubicación en el mail de alerta (el navegador te va a pedir permiso al hacer check-in). No hace falta activar nada.
-      </p>
       <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
       <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
-      <p class="muted" style="margin:10px 0 0;font-size:12px;">
-        Si no hacés check-in a tiempo, tus contactos de emergencia reciben el aviso 2 horas después del vencimiento (margen de gracia).
-      </p>
       <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
       <div class="ok hidden" id="settingsOk">Guardado.</div>
     </div>
@@ -339,6 +339,9 @@
       </div>
     </div>
     <p class="muted hidden" id="refPeopleLimitMsg" style="margin-top:-6px;">Llegaste al máximo de 5 personas de contacto. Eliminá alguna para agregar otra.</p>
+
+    <div class="section-title" id="faqSection">Preguntas frecuentes</div>
+    <div class="card" id="faqCard"></div>
 
     <div class="card" style="border-color:var(--red);margin-top:28px;">
       <div class="section-title" style="margin-top:0;color:var(--red);">Eliminar cuenta</div>
@@ -580,6 +583,63 @@ function setupDisclosure(toggleId, bodyId) {
 }
 setupDisclosure('addContactToggle', 'addContactBody');
 setupDisclosure('addRefPersonToggle', 'addRefPersonBody');
+
+// ---------- FAQ ----------
+const FAQ_ITEMS = [
+  {
+    q: '¿Necesito activar los recordatorios de check-in?',
+    a: 'No, vienen activados por defecto. Te avisamos por mail cuando falte poco para hacer check-in: a mitad de plazo, 1 hora antes y 15 minutos antes de que se cumpla tu intervalo configurado.',
+  },
+  {
+    q: '¿Necesito activar que se comparta mi ubicación?',
+    a: 'No, viene activada por defecto. El navegador te va a pedir permiso al tocar "Encender el Faro", y si lo das, tu última ubicación se incluye en el mail de alerta a tus contactos.',
+  },
+  {
+    q: '¿Qué pasa si no hago check-in a tiempo?',
+    a: 'Tus contactos de emergencia reciben el aviso 2 horas después de que se cumpla tu plazo configurado (margen de gracia), por si te olvidaste pero todavía estás a tiempo de avisar.',
+  },
+  {
+    q: '¿Puedo probar cómo se ve el mail antes de que pase algo?',
+    a: 'Sí. Usá "Enviar prueba" en cada contacto de emergencia y "Enviar recordatorio de prueba" en Configuración para ver exactamente lo que van a recibir.',
+  },
+  {
+    q: '¿Qué diferencia hay entre "contactos de emergencia" y "personas de contacto"?',
+    a: 'Los contactos de emergencia son quienes reciben el mail de alerta si no hacés check-in a tiempo. Las personas de contacto no reciben ningún mail: sus datos (nombre, relación y teléfono) se incluyen dentro de ese mail para que tus contactos sepan a quién más recurrir.',
+  },
+  {
+    q: '¿Puedo pausar los avisos si estoy acompañado o de viaje?',
+    a: 'Sí, activá "Pausar" en Configuración mientras no necesites que se controle tu check-in, y desactivalo cuando vuelvas a estar solo.',
+  },
+  {
+    q: '¿Puedo cambiar cada cuánto tengo que hacer check-in?',
+    a: 'Sí, desde Configuración podés elegir cada 24 horas, 48 horas, 3, 7 o 30 días.',
+  },
+];
+
+function renderFaq() {
+  const card = $('faqCard');
+  card.innerHTML = FAQ_ITEMS.map((item, i) => `
+    <div class="faq-item">
+      <div class="disclosure-head faq-q" data-target="faqBody${i}" aria-expanded="false">
+        <span>${escapeHtml(item.q)}</span>
+        <svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="disclosure-body faq-a" id="faqBody${i}">
+        <p>${escapeHtml(item.a)}</p>
+      </div>
+    </div>
+  `).join('');
+
+  card.querySelectorAll('.faq-q').forEach((head) => {
+    head.addEventListener('click', () => {
+      const body = $(head.dataset.target);
+      const willOpen = !body.classList.contains('open');
+      body.classList.toggle('open', willOpen);
+      head.setAttribute('aria-expanded', String(willOpen));
+    });
+  });
+}
+renderFaq();
 
 // ---------- Contacts ----------
 const AVATAR_GRADIENTS = [
