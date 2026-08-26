@@ -205,7 +205,7 @@ app.post('/api/contacts/:id/test', authRequired, async (req, res) => {
 
   const result = await sendEmail({
     to: contact.email,
-    subject: `[PRUEBA] Mensaje de check-in de ${shortName}`,
+    subject: `[PRUEBA] Faro no recibió la señal de ${shortName}`,
     html:
       '<p style="color:#b45309"><strong>Este es un mail de prueba — no significa que haya pasado nada.</strong></p>' +
       alertEmailHtml({

@@ -55,7 +55,7 @@ async function checkAllUsers() {
         const combinedMessage = [user.default_message, c.message].filter(Boolean).join('\n\n');
         await sendEmail({
           to: c.email,
-          subject: `Alerta: ${shortName} no hizo check-in`,
+          subject: `Alerta: ${shortName} no dio señal`,
           html: alertEmailHtml({
             userName: fullName,
             shortName,

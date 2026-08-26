@@ -144,10 +144,10 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
           Hola ${contactName || ''},
         </p>
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
-          <strong style="color:#1c1917;">${userName}</strong> no hizo check-in dentro del plazo configurado en su
+          <strong style="color:#1c1917;">${userName}</strong> no dio señal dentro del plazo configurado en su
           app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático. Puede que le
           haya pasado algo. Por favor, verificá que esté bien.<br><br>
-          ${userName} dejó preparado esta nota para vos:
+          El usuario dejó preparado esta nota para vos:
         </p>
         <div style="background:#fdf6ec;border-radius:12px;padding:22px 24px;margin:0 0 22px;">
           <p style="color:#292524;font-size:14.5px;line-height:1.85;margin:0;">
@@ -159,7 +159,7 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
           Hola ${contactName || ''},
         </p>
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
-          <strong style="color:#1c1917;">${userName}</strong> no hizo check-in dentro del plazo configurado en su
+          <strong style="color:#1c1917;">${userName}</strong> no dio señal dentro del plazo configurado en su
           app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático. Puede que le
           haya pasado algo. Por favor, verificá que esté bien.
         </p>`;
@@ -170,7 +170,7 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
         </p>`;
   return emailShell({
     iconGradient: 'radial-gradient(circle at 35% 30%,#fde68a,#d97706)',
-    title: `${titleName} no hizo check-in`,
+    title: `${titleName} no dio señal`,
     subtitle: '',
     bodyHtml,
   });
@@ -178,8 +178,8 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
 
 function warningEmailHtml({ userName, urgencyLabel }) {
   const urgencyLine = urgencyLabel
-    ? `Te queda ${urgencyLabel} para hacer tu check-in en Faro.`
-    : 'Todavía no hiciste check-in en Faro.';
+    ? `Te queda ${urgencyLabel} para encender el Faro.`
+    : 'Todavía no encendiste el Faro.';
   const bodyHtml = `
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0 0 22px;">
           Hola ${userName},
@@ -193,7 +193,7 @@ function warningEmailHtml({ userName, urgencyLabel }) {
         </p>`;
   return emailShell({
     iconGradient: 'radial-gradient(circle at 35% 30%,#fef3c7,#f59e0b)',
-    title: 'Falta poco para tu check-in',
+    title: 'Falta poco para dar tu señal',
     subtitle: '',
     bodyHtml,
   });
