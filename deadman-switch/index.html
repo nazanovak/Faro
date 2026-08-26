@@ -149,6 +149,13 @@
   #app{display:none;}
   #auth{display:block;}
   .hidden{display:none !important;}
+
+  .disclosure-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+  .disclosure-head h3{margin:0;}
+  .disclosure-chevron{width:18px;height:18px;flex:none;color:var(--muted);transition:transform 0.2s ease;}
+  .disclosure-head[aria-expanded="true"] .disclosure-chevron{transform:rotate(180deg);}
+  .disclosure-body{overflow:hidden;max-height:0;transition:max-height 0.25s ease;}
+  .disclosure-body.open{max-height:600px;}
 </style>
 </head>
 <body>
@@ -240,10 +247,9 @@
         <option value="168">Cada 7 días</option>
         <option value="720">Cada 30 días</option>
       </select>
-      <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
-        <input type="checkbox" id="sendRemindersCheck" style="width:auto;">
-        <span style="margin:0;">Avisarme por mail cuando falte poco para hacer check-in (a mitad de plazo, 1 hora antes y 15 minutos antes)</span>
-      </label>
+      <p class="muted" style="margin:16px 0 0;font-size:12.5px;">
+        Por defecto te avisamos por mail cuando falte poco para hacer check-in (a mitad de plazo, 1 hora antes y 15 minutos antes). No hace falta activar nada.
+      </p>
       <button class="btn-secondary" id="testReminderBtn" type="button" style="width:100%;margin-top:10px;">Enviar recordatorio de prueba</button>
       <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
         <input type="checkbox" id="pausedCheck" style="width:auto;">
@@ -266,15 +272,20 @@
     <div id="contactsList"></div>
 
     <div class="card">
-      <h3 style="margin-top:0;">Agregar contacto</h3>
-      <label>Nombre</label>
-      <input id="cName" type="text" placeholder="Nombre del contacto">
-      <label>Email</label>
-      <input id="cEmail" type="email" placeholder="contacto@ejemplo.com">
-      <label>Mensaje personalizado</label>
-      <textarea id="cMessage" placeholder="Ej: Hola María, soy Juan. Si te llegó esto es porque no hice check-in en mi app. Por favor llamame, y si no contesto, pasá por casa o avisá al encargado del edificio."></textarea>
-      <button class="btn-secondary" id="addContact" style="width:100%;margin-top:16px;">Agregar contacto</button>
-      <div class="error hidden" id="contactError"></div>
+      <div class="disclosure-head" id="addContactToggle" aria-expanded="false">
+        <h3>Agregar contacto</h3>
+        <svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="disclosure-body" id="addContactBody">
+        <label>Nombre</label>
+        <input id="cName" type="text" placeholder="Nombre del contacto">
+        <label>Email</label>
+        <input id="cEmail" type="email" placeholder="contacto@ejemplo.com">
+        <label>Mensaje personalizado</label>
+        <textarea id="cMessage" placeholder="Ej: Hola María, soy Juan. Si te llegó esto es porque no hice check-in en mi app. Por favor llamame, y si no contesto, pasá por casa o avisá al encargado del edificio."></textarea>
+        <button class="btn-secondary" id="addContact" style="width:100%;margin-top:16px;">Agregar contacto</button>
+        <div class="error hidden" id="contactError"></div>
+      </div>
     </div>
 
     <div class="section-title">Personas de contacto <span class="muted" id="refPeopleCount" style="font-weight:400;"></span></div>
@@ -285,18 +296,23 @@
     <div id="refPeopleList"></div>
 
     <div class="card" id="addRefPersonCard">
-      <h3 style="margin-top:0;">Agregar persona de contacto</h3>
-      <label>Nombre</label>
-      <input id="rName" type="text" placeholder="Nombre de la persona">
-      <label>Relación</label>
-      <input id="rRelation" type="text" placeholder="Ej: Madre, hermano, amigo, pareja...">
-      <label>Teléfono</label>
-      <input id="rPhone" type="tel" placeholder="+54 9 11 xxxx-xxxx">
-      <label>Email (opcional)</label>
-      <input id="rEmail" type="email" placeholder="persona@ejemplo.com">
-      <p class="muted" style="margin:-8px 0 0;font-size:12.5px;">Cargá al menos un teléfono o un email.</p>
-      <button class="btn-secondary" id="addRefPerson" style="width:100%;margin-top:16px;">Agregar persona</button>
-      <div class="error hidden" id="refPersonError"></div>
+      <div class="disclosure-head" id="addRefPersonToggle" aria-expanded="false">
+        <h3>Agregar persona de contacto</h3>
+        <svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="disclosure-body" id="addRefPersonBody">
+        <label>Nombre</label>
+        <input id="rName" type="text" placeholder="Nombre de la persona">
+        <label>Relación</label>
+        <input id="rRelation" type="text" placeholder="Ej: Madre, hermano, amigo, pareja...">
+        <label>Teléfono</label>
+        <input id="rPhone" type="tel" placeholder="+54 9 11 xxxx-xxxx">
+        <label>Email (opcional)</label>
+        <input id="rEmail" type="email" placeholder="persona@ejemplo.com">
+        <p class="muted" style="margin:-8px 0 0;font-size:12.5px;">Cargá al menos un teléfono o un email.</p>
+        <button class="btn-secondary" id="addRefPerson" style="width:100%;margin-top:16px;">Agregar persona</button>
+        <div class="error hidden" id="refPersonError"></div>
+      </div>
     </div>
     <p class="muted hidden" id="refPeopleLimitMsg" style="margin-top:-6px;">Llegaste al máximo de 5 personas de contacto. Eliminá alguna para agregar otra.</p>
 
@@ -376,7 +392,6 @@ async function loadApp() {
   $('settingsInterval').value = String(state.user.checkin_interval_hours);
   $('pausedCheck').checked = state.user.paused;
   $('shareLocationCheck').checked = state.user.share_location;
-  $('sendRemindersCheck').checked = state.user.send_reminders !== false;
   renderContacts();
   renderReferencePeople();
   renderStatus();
@@ -479,7 +494,6 @@ $('saveSettings').addEventListener('click', async () => {
       checkin_interval_hours: $('settingsInterval').value,
       paused: $('pausedCheck').checked,
       share_location: $('shareLocationCheck').checked,
-      send_reminders: $('sendRemindersCheck').checked,
     }),
   });
   state.user.name = name;
@@ -487,7 +501,6 @@ $('saveSettings').addEventListener('click', async () => {
   state.user.checkin_interval_hours = Number($('settingsInterval').value);
   state.user.paused = $('pausedCheck').checked;
   state.user.share_location = $('shareLocationCheck').checked;
-  state.user.send_reminders = $('sendRemindersCheck').checked;
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
   $('settingsOk').classList.remove('hidden');
   setTimeout(() => $('settingsOk').classList.add('hidden'), 2000);
@@ -501,6 +514,18 @@ $('testReminderBtn').addEventListener('click', async (e) => {
   btn.textContent = res.ok ? 'Enviado ✓ (revisá tu mail)' : 'Error al enviar';
   setTimeout(() => { btn.textContent = 'Enviar recordatorio de prueba'; }, 2500);
 });
+
+function setupDisclosure(toggleId, bodyId) {
+  const toggle = $(toggleId);
+  const body = $(bodyId);
+  toggle.addEventListener('click', () => {
+    const willOpen = !body.classList.contains('open');
+    body.classList.toggle('open', willOpen);
+    toggle.setAttribute('aria-expanded', String(willOpen));
+  });
+}
+setupDisclosure('addContactToggle', 'addContactBody');
+setupDisclosure('addRefPersonToggle', 'addRefPersonBody');
 
 // ---------- Contacts ----------
 const AVATAR_GRADIENTS = [
@@ -619,6 +644,8 @@ $('addContact').addEventListener('click', async () => {
   state.contacts.push({ id: data.id, name, email, message });
   renderContacts();
   $('cName').value = ''; $('cEmail').value = ''; $('cMessage').value = '';
+  $('addContactBody').classList.remove('open');
+  $('addContactToggle').setAttribute('aria-expanded', 'false');
 });
 
 // ---------- Personas de contacto (no reciben mail, solo se listan en el mail de los contactos) ----------
@@ -734,6 +761,8 @@ $('addRefPerson').addEventListener('click', async () => {
   state.referencePeople.push({ id: data.id, name, relation, phone, email });
   renderReferencePeople();
   $('rName').value = ''; $('rRelation').value = ''; $('rPhone').value = ''; $('rEmail').value = '';
+  $('addRefPersonBody').classList.remove('open');
+  $('addRefPersonToggle').setAttribute('aria-expanded', 'false');
 });
 
 $('deleteAccountBtn').addEventListener('click', async () => {
