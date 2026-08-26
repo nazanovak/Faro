@@ -137,20 +137,40 @@ app.delete('/api/me', authRequired, (req, res) => {
 });
 
 // ---------- Contactos ----------
+const MAX_CONTACTS = 5;
+
 app.post('/api/contacts', authRequired, (req, res) => {
-  const { name, email, message } = req.body || {};
-  if (!name || !email) return res.status(400).json({ error: 'Falta nombre o email del contacto' });
-  const contact = db.createContact({ user_id: req.userId, name, email, message: message || '' });
+  const { name, relation, email, phone, message } = req.body || {};
+  if (!name || !(email || phone)) {
+    return res.status(400).json({ error: 'Falta nombre y al menos un email o teléfono del contacto' });
+  }
+  const existing = db.getContactsByUser(req.userId);
+  if (existing.length >= MAX_CONTACTS) {
+    return res.status(400).json({ error: `Ya tenés el máximo de ${MAX_CONTACTS} contactos de emergencia` });
+  }
+  const contact = db.createContact({
+    user_id: req.userId,
+    name,
+    relation: relation || '',
+    email: email || '',
+    phone: phone || '',
+    message: message || '',
+  });
   res.json({ ok: true, id: contact.id });
 });
 
 app.put('/api/contacts/:id', authRequired, (req, res) => {
-  const { name, email, message } = req.body || {};
+  const { name, relation, email, phone, message } = req.body || {};
   const contact = db.findContact(req.params.id, req.userId);
   if (!contact) return res.status(404).json({ error: 'Contacto no encontrado' });
+  if (!(name ?? contact.name) || !((email ?? contact.email) || (phone ?? contact.phone))) {
+    return res.status(400).json({ error: 'Falta nombre y al menos un email o teléfono del contacto' });
+  }
   db.updateContact(req.params.id, req.userId, {
     name: name ?? contact.name,
+    relation: relation ?? contact.relation,
     email: email ?? contact.email,
+    phone: phone ?? contact.phone,
     message: message ?? contact.message,
   });
   res.json({ ok: true });
@@ -165,6 +185,7 @@ app.delete('/api/contacts/:id', authRequired, (req, res) => {
 app.post('/api/contacts/:id/test', authRequired, async (req, res) => {
   const contact = db.findContact(req.params.id, req.userId);
   if (!contact) return res.status(404).json({ error: 'Contacto no encontrado' });
+  if (!contact.email) return res.status(400).json({ error: 'Este contacto no tiene email cargado, no se le puede enviar una prueba' });
   const user = db.findUserById(req.userId);
   const fullName = user.name || user.email;
   const shortName = firstName(user.name) || user.email;
@@ -173,6 +194,7 @@ app.post('/api/contacts/:id/test', authRequired, async (req, res) => {
   const location = user.share_location && user.last_lat != null
     ? { lat: user.last_lat, lng: user.last_lng, at: user.last_location_at }
     : null;
+  const allContacts = db.getContactsByUser(req.userId);
 
   const result = await sendEmail({
     to: contact.email,
@@ -186,6 +208,8 @@ app.post('/api/contacts/:id/test', authRequired, async (req, res) => {
         personalMessage: combinedMessage,
         lastCheckinAt: user.last_checkin_at,
         location,
+        contacts: allContacts,
+        currentContactId: contact.id,
       }),
   });
 

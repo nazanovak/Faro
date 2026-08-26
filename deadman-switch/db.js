@@ -95,13 +95,15 @@ module.exports = {
     );
   },
 
-  createContact({ user_id, name, email, message }) {
+  createContact({ user_id, name, relation, email, phone, message }) {
     const data = load();
     const contact = {
       id: data.nextContactId++,
       user_id: Number(user_id),
       name,
-      email,
+      relation: relation || '',
+      email: email || '',
+      phone: phone || '',
       message: message || '',
       created_at: nowIso(),
     };

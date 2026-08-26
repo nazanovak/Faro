@@ -260,20 +260,26 @@
       <button class="btn-danger" id="deleteAccountBtn" style="width:100%;">Borrar mi cuenta</button>
     </div>
 
-    <div class="section-title">Tus contactos de emergencia</div>
+    <div class="section-title">Tus contactos de emergencia <span class="muted" id="contactsCount" style="font-weight:400;"></span></div>
     <div id="contactsList"></div>
 
-    <div class="card">
+    <div class="card" id="addContactCard">
       <h3 style="margin-top:0;">Agregar contacto</h3>
       <label>Nombre</label>
       <input id="cName" type="text" placeholder="Nombre del contacto">
+      <label>Relación</label>
+      <input id="cRelation" type="text" placeholder="Ej: Madre, hermano, amigo, pareja...">
       <label>Email</label>
       <input id="cEmail" type="email" placeholder="contacto@ejemplo.com">
+      <label>Teléfono</label>
+      <input id="cPhone" type="tel" placeholder="+54 9 11 xxxx-xxxx">
+      <p class="muted" style="margin:-8px 0 0;font-size:12.5px;">Cargá al menos un email o un teléfono.</p>
       <label>Mensaje personalizado</label>
       <textarea id="cMessage" placeholder="Ej: Hola María, soy Juan. Si te llegó esto es porque no hice check-in en mi app. Por favor llamame, y si no contesto, pasá por casa o avisá al encargado del edificio."></textarea>
       <button class="btn-secondary" id="addContact" style="width:100%;margin-top:16px;">Agregar contacto</button>
       <div class="error hidden" id="contactError"></div>
     </div>
+    <p class="muted hidden" id="contactsLimitMsg" style="margin-top:-6px;">Llegaste al máximo de 5 contactos de emergencia. Eliminá alguno para agregar otro.</p>
   </div>
 
 </div>
@@ -459,8 +465,14 @@ const AVATAR_GRADIENTS = [
   ['#c9c3f0', '#6a5acd', '#20163d'],
 ];
 
+const MAX_CONTACTS = 5;
+
 function renderContacts() {
   const list = $('contactsList');
+  $('contactsCount').textContent = `(${state.contacts.length}/${MAX_CONTACTS})`;
+  $('addContactCard').classList.toggle('hidden', state.contacts.length >= MAX_CONTACTS);
+  $('contactsLimitMsg').classList.toggle('hidden', state.contacts.length < MAX_CONTACTS);
+
   if (state.contacts.length === 0) {
     list.innerHTML = '<p class="muted">Todavía no agregaste contactos. Si no hacés check-in, no hay a quién avisar.</p>';
     return;
@@ -468,6 +480,7 @@ function renderContacts() {
   list.innerHTML = state.contacts.map((c, i) => {
     const [g1, g2, ink] = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
     const initial = escapeHtml((c.name || '?').trim().charAt(0).toUpperCase() || '?');
+    const subLine = [c.relation, c.email, c.phone].filter(Boolean).map(escapeHtml).join(' · ');
     return `
     <div class="contact" data-id="${c.id}">
       <div class="contact-view" id="view-${c.id}">
@@ -476,7 +489,7 @@ function renderContacts() {
             <div class="contact-avatar" style="background:linear-gradient(135deg, ${g1}, ${g2});color:${ink};">${initial}</div>
             <div>
               <div class="contact-name">${escapeHtml(c.name)}</div>
-              <div class="contact-email">${escapeHtml(c.email)}</div>
+              <div class="contact-email">${subLine}</div>
             </div>
           </div>
         </div>
@@ -490,8 +503,12 @@ function renderContacts() {
       <div class="contact-edit hidden" id="edit-${c.id}">
         <label>Nombre</label>
         <input type="text" class="edit-name" value="${escapeHtml(c.name)}">
+        <label>Relación</label>
+        <input type="text" class="edit-relation" value="${escapeHtml(c.relation || '')}" placeholder="Ej: Madre, hermano, amigo, pareja...">
         <label>Email</label>
-        <input type="email" class="edit-email" value="${escapeHtml(c.email)}">
+        <input type="email" class="edit-email" value="${escapeHtml(c.email || '')}">
+        <label>Teléfono</label>
+        <input type="tel" class="edit-phone" value="${escapeHtml(c.phone || '')}">
         <label>Mensaje personalizado</label>
         <textarea class="edit-message">${escapeHtml(c.message)}</textarea>
         <div class="contact-actions">
@@ -535,39 +552,43 @@ function renderContacts() {
     const id = e.target.dataset.id;
     const container = $('edit-' + id);
     const name = container.querySelector('.edit-name').value.trim();
+    const relation = container.querySelector('.edit-relation').value.trim();
     const email = container.querySelector('.edit-email').value.trim();
+    const phone = container.querySelector('.edit-phone').value.trim();
     const message = container.querySelector('.edit-message').value.trim();
-    if (!name || !email) { alert('Completá nombre y email.'); return; }
+    if (!name || !(email || phone)) { alert('Completá nombre y al menos un email o teléfono.'); return; }
     const res = await fetch('/api/contacts/' + id, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, message }),
+      body: JSON.stringify({ name, relation, email, phone, message }),
     });
     if (!res.ok) { alert('No se pudo guardar.'); return; }
     const contact = state.contacts.find(c => String(c.id) === id);
-    Object.assign(contact, { name, email, message });
+    Object.assign(contact, { name, relation, email, phone, message });
     renderContacts();
   }));
 }
 
 $('addContact').addEventListener('click', async () => {
   const name = $('cName').value.trim();
+  const relation = $('cRelation').value.trim();
   const email = $('cEmail').value.trim();
+  const phone = $('cPhone').value.trim();
   const message = $('cMessage').value.trim();
   $('contactError').classList.add('hidden');
-  if (!name || !email) {
-    $('contactError').textContent = 'Completá nombre y email.';
+  if (!name || !(email || phone)) {
+    $('contactError').textContent = 'Completá nombre y al menos un email o teléfono.';
     $('contactError').classList.remove('hidden');
     return;
   }
   const res = await fetch('/api/contacts', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, message }),
+    body: JSON.stringify({ name, relation, email, phone, message }),
   });
   const data = await res.json();
   if (!res.ok) { $('contactError').textContent = data.error; $('contactError').classList.remove('hidden'); return; }
-  state.contacts.push({ id: data.id, name, email, message });
+  state.contacts.push({ id: data.id, name, relation, email, phone, message });
   renderContacts();
-  $('cName').value = ''; $('cEmail').value = ''; $('cMessage').value = '';
+  $('cName').value = ''; $('cRelation').value = ''; $('cEmail').value = ''; $('cPhone').value = ''; $('cMessage').value = '';
 });
 
 $('deleteAccountBtn').addEventListener('click', async () => {

@@ -81,7 +81,42 @@ function emailShell({ iconGradient, title, subtitle, bodyHtml }) {
 </body></html>`;
 }
 
-function alertEmailHtml({ userName, shortName, contactName, personalMessage, lastCheckinAt, location }) {
+// Arma el bloque HTML con los demás contactos de emergencia, para que
+// cada persona notificada sepa a quién más recurrir o coordinar con.
+function otherContactsBlock(contacts, currentContactId) {
+  const others = (contacts || []).filter((c) => c.id !== currentContactId);
+  if (others.length === 0) return '';
+
+  const rows = others
+    .map((c) => {
+      const parts = [];
+      if (c.email) {
+        parts.push(
+          `<a href="mailto:${c.email}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${c.email}</a>`
+        );
+      }
+      if (c.phone) {
+        const cleanPhone = c.phone.replace(/[\s\-\u2011]/g, '');
+        parts.push(
+          `<a href="tel:${cleanPhone}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${c.phone}</a>`
+        );
+      }
+      const relationLabel = c.relation ? ` <span style="color:#a8a29e;">(${c.relation})</span>` : '';
+      return `
+          <p style="color:#292524;font-size:13.5px;line-height:1.6;margin:0 0 10px;">
+            <strong>${c.name}</strong>${relationLabel}${parts.length ? ' — ' + parts.join(' · ') : ''}
+          </p>`;
+    })
+    .join('');
+
+  return `
+        <div style="background:#f4f4f5;border-radius:12px;padding:16px 20px;margin:0 0 22px;">
+          <p style="color:#57534e;font-size:13px;font-weight:600;margin:0 0 12px;">Otros contactos de emergencia</p>
+          ${rows}
+        </div>`;
+}
+
+function alertEmailHtml({ userName, shortName, contactName, personalMessage, lastCheckinAt, location, contacts, currentContactId }) {
   const titleName = shortName || userName;
   const safeMessage = linkifyPhones((personalMessage || '').replace(/\n/g, '<br>'));
   const fecha = new Date(lastCheckinAt).toLocaleString('es-AR', {
@@ -112,9 +147,9 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
         </p>
         <div style="background:#fdf6ec;border-radius:12px;padding:22px 24px;margin:0 0 22px;">
           <p style="color:#292524;font-size:14.5px;line-height:1.85;margin:0;">
-            ${safeMessage || '(No se escribió un mensaje personalizado.)'}
+            ${safeMessage || `Si estás recibiendo este mensaje, significa que ${userName} no hizo su check-in y puede que le haya pasado algo. Por favor, verificá que esté bien.`}
           </p>
-        </div>${locationBlock}
+        </div>${locationBlock}${otherContactsBlock(contacts, currentContactId)}
         <p style="color:#a8a29e;font-size:12.5px;line-height:1.6;margin:0;">
           Esto no significa necesariamente que algo malo haya pasado — puede ser un olvido, un viaje o un problema
           con el teléfono. Pero si te parece razonable, intentá contactar a ${userName} o pasar a verificar que esté bien.
