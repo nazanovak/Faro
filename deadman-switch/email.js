@@ -176,13 +176,16 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
   });
 }
 
-function warningEmailHtml({ userName }) {
+function warningEmailHtml({ userName, urgencyLabel }) {
+  const urgencyLine = urgencyLabel
+    ? `Te queda ${urgencyLabel} para hacer tu check-in en Faro.`
+    : 'Todavía no hiciste check-in en Faro.';
   const bodyHtml = `
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0 0 22px;">
           Hola ${userName},
         </p>
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
-          Todavía no hiciste check-in en Faro. Si no lo hacés antes de que se cumpla tu intervalo configurado,
+          ${urgencyLine} Si no lo hacés antes de que se cumpla tu intervalo configurado,
           se les va a avisar automáticamente a tus contactos de emergencia.
         </p>
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0;">

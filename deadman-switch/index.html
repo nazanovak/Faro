@@ -241,6 +241,10 @@
         <option value="720">Cada 30 días</option>
       </select>
       <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
+        <input type="checkbox" id="sendRemindersCheck" style="width:auto;">
+        <span style="margin:0;">Avisarme por mail cuando falte poco para hacer check-in (a mitad de plazo, 1 hora antes y 15 minutos antes)</span>
+      </label>
+      <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
         <input type="checkbox" id="pausedCheck" style="width:auto;">
         <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
       </label>
@@ -250,6 +254,9 @@
       </label>
       <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
       <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
+      <p class="muted" style="margin:10px 0 0;font-size:12px;">
+        Si no hacés check-in a tiempo, tus contactos de emergencia reciben el aviso 2 horas después del vencimiento (margen de gracia).
+      </p>
       <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
       <div class="ok hidden" id="settingsOk">Guardado.</div>
     </div>
@@ -368,6 +375,7 @@ async function loadApp() {
   $('settingsInterval').value = String(state.user.checkin_interval_hours);
   $('pausedCheck').checked = state.user.paused;
   $('shareLocationCheck').checked = state.user.share_location;
+  $('sendRemindersCheck').checked = state.user.send_reminders !== false;
   renderContacts();
   renderReferencePeople();
   renderStatus();
@@ -391,8 +399,11 @@ function renderStatus() {
   if (state.user.paused) {
     badge.innerHTML = '<span class="status-dot"></span>En pausa'; badge.className = 'status-badge status-ok';
     circle.style.stroke = 'var(--muted)';
-  } else if (pct >= 1) {
+  } else if (state.user.alert_sent) {
     badge.innerHTML = '<span class="status-dot"></span>Se notificó a tus contactos'; badge.className = 'status-badge status-alert';
+    circle.style.stroke = 'var(--red)';
+  } else if (pct >= 1) {
+    badge.innerHTML = '<span class="status-dot"></span>Plazo vencido — margen de gracia activo'; badge.className = 'status-badge status-alert';
     circle.style.stroke = 'var(--red)';
   } else if (pct >= 0.75) {
     badge.innerHTML = '<span class="status-dot"></span>Te queda poco tiempo'; badge.className = 'status-badge status-warn';
@@ -448,7 +459,9 @@ $('checkinBtn').addEventListener('click', async () => {
   state.user.last_lat = data.last_lat;
   state.user.last_lng = data.last_lng;
   state.user.last_location_at = data.last_location_at;
-  state.user.warning_sent = false;
+  state.user.warning_half_sent = false;
+  state.user.warning_1h_sent = false;
+  state.user.warning_15m_sent = false;
   state.user.alert_sent = false;
   renderStatus();
 });
@@ -465,6 +478,7 @@ $('saveSettings').addEventListener('click', async () => {
       checkin_interval_hours: $('settingsInterval').value,
       paused: $('pausedCheck').checked,
       share_location: $('shareLocationCheck').checked,
+      send_reminders: $('sendRemindersCheck').checked,
     }),
   });
   state.user.name = name;
@@ -472,6 +486,7 @@ $('saveSettings').addEventListener('click', async () => {
   state.user.checkin_interval_hours = Number($('settingsInterval').value);
   state.user.paused = $('pausedCheck').checked;
   state.user.share_location = $('shareLocationCheck').checked;
+  state.user.send_reminders = $('sendRemindersCheck').checked;
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
   $('settingsOk').classList.remove('hidden');
   setTimeout(() => $('settingsOk').classList.add('hidden'), 2000);

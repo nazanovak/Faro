@@ -37,7 +37,7 @@ function publicUser(u) {
     name: u.name,
     checkin_interval_hours: u.checkin_interval_hours,
     last_checkin_at: u.last_checkin_at,
-    warning_sent: !!u.warning_sent,
+    send_reminders: u.send_reminders !== false,
     alert_sent: !!u.alert_sent,
     paused: !!u.paused,
     default_message: u.default_message || '',
@@ -103,7 +103,9 @@ app.post('/api/checkin', authRequired, (req, res) => {
   const user = db.findUserById(req.userId);
   const patch = {
     last_checkin_at: db.nowIso(),
-    warning_sent: false,
+    warning_half_sent: false,
+    warning_1h_sent: false,
+    warning_15m_sent: false,
     alert_sent: false,
   };
   // Solo guardamos coordenadas si el usuario activó "compartir ubicación"
@@ -117,7 +119,7 @@ app.post('/api/checkin', authRequired, (req, res) => {
 });
 
 app.put('/api/settings', authRequired, (req, res) => {
-  const { name, checkin_interval_hours, paused, default_message, share_location } = req.body || {};
+  const { name, checkin_interval_hours, paused, default_message, share_location, send_reminders } = req.body || {};
   const user = db.findUserById(req.userId);
   db.updateUser(req.userId, {
     name: name !== undefined ? name : user.name,
@@ -126,6 +128,7 @@ app.put('/api/settings', authRequired, (req, res) => {
     paused: paused !== undefined ? !!paused : user.paused,
     default_message: default_message !== undefined ? default_message : user.default_message,
     share_location: share_location !== undefined ? !!share_location : user.share_location,
+    send_reminders: send_reminders !== undefined ? !!send_reminders : (user.send_reminders !== false),
   });
   res.json({ ok: true });
 });
