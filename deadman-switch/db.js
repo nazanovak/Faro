@@ -14,9 +14,13 @@ const DB_PATH = path.join(DATA_DIR, 'data.json');
 
 function load() {
   if (!fs.existsSync(DB_PATH)) {
-    return { users: [], contacts: [], nextUserId: 1, nextContactId: 1 };
+    return { users: [], contacts: [], reference_people: [], nextUserId: 1, nextContactId: 1, nextReferencePersonId: 1 };
   }
-  return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+  const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+  // Compatibilidad con data.json viejos que todavía no tienen estos campos
+  if (!data.reference_people) data.reference_people = [];
+  if (!data.nextReferencePersonId) data.nextReferencePersonId = 1;
+  return data;
 }
 
 function save(data) {
@@ -81,6 +85,7 @@ module.exports = {
     const data = load();
     data.users = data.users.filter((u) => u.id !== Number(id));
     data.contacts = data.contacts.filter((c) => c.user_id !== Number(id));
+    data.reference_people = data.reference_people.filter((p) => p.user_id !== Number(id));
     save(data);
   },
 
@@ -95,15 +100,13 @@ module.exports = {
     );
   },
 
-  createContact({ user_id, name, relation, email, phone, message }) {
+  createContact({ user_id, name, email, message }) {
     const data = load();
     const contact = {
       id: data.nextContactId++,
       user_id: Number(user_id),
       name,
-      relation: relation || '',
-      email: email || '',
-      phone: phone || '',
+      email,
       message: message || '',
       created_at: nowIso(),
     };
@@ -125,6 +128,57 @@ module.exports = {
     const data = load();
     data.contacts = data.contacts.filter(
       (c) => !(c.id === Number(id) && c.user_id === Number(userId))
+    );
+    save(data);
+  },
+
+  // ---------- personas de contacto ----------
+  // A diferencia de los "contactos de emergencia", a estas personas nunca
+  // se les manda un mail directamente. Solo se incluyen sus datos (nombre,
+  // relación y teléfono) dentro del mail que reciben los contactos de
+  // emergencia, para que sepan a quién más pueden recurrir.
+  getReferencePeopleByUser(userId) {
+    return load().reference_people.filter((p) => p.user_id === Number(userId));
+  },
+
+  findReferencePerson(id, userId) {
+    return (
+      load().reference_people.find((p) => p.id === Number(id) && p.user_id === Number(userId)) ||
+      null
+    );
+  },
+
+  createReferencePerson({ user_id, name, relation, phone, email }) {
+    const data = load();
+    const person = {
+      id: data.nextReferencePersonId++,
+      user_id: Number(user_id),
+      name,
+      relation: relation || '',
+      phone: phone || '',
+      email: email || '',
+      created_at: nowIso(),
+    };
+    data.reference_people.push(person);
+    save(data);
+    return person;
+  },
+
+  updateReferencePerson(id, userId, patch) {
+    const data = load();
+    const person = data.reference_people.find(
+      (p) => p.id === Number(id) && p.user_id === Number(userId)
+    );
+    if (!person) return null;
+    Object.assign(person, patch);
+    save(data);
+    return person;
+  },
+
+  deleteReferencePerson(id, userId) {
+    const data = load();
+    data.reference_people = data.reference_people.filter(
+      (p) => !(p.id === Number(id) && p.user_id === Number(userId))
     );
     save(data);
   },

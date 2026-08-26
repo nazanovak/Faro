@@ -81,42 +81,44 @@ function emailShell({ iconGradient, title, subtitle, bodyHtml }) {
 </body></html>`;
 }
 
-// Arma el bloque HTML con los demás contactos de emergencia, para que
-// cada persona notificada sepa a quién más recurrir o coordinar con.
-function otherContactsBlock(contacts, currentContactId) {
-  const others = (contacts || []).filter((c) => c.id !== currentContactId);
-  if (others.length === 0) return '';
+// Arma el bloque HTML con las "personas de contacto" que el usuario cargó:
+// solo se muestran acá (nombre, relación, teléfono/email) — nunca reciben
+// un mail propio, es únicamente información de referencia para quien
+// recibe la alerta.
+function referencePeopleBlock(referencePeople) {
+  const people = referencePeople || [];
+  if (people.length === 0) return '';
 
-  const rows = others
-    .map((c) => {
+  const rows = people
+    .map((p) => {
       const parts = [];
-      if (c.email) {
+      if (p.phone) {
+        const cleanPhone = p.phone.replace(/[\s\-\u2011]/g, '');
         parts.push(
-          `<a href="mailto:${c.email}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${c.email}</a>`
+          `<a href="tel:${cleanPhone}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${p.phone}</a>`
         );
       }
-      if (c.phone) {
-        const cleanPhone = c.phone.replace(/[\s\-\u2011]/g, '');
+      if (p.email) {
         parts.push(
-          `<a href="tel:${cleanPhone}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${c.phone}</a>`
+          `<a href="mailto:${p.email}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${p.email}</a>`
         );
       }
-      const relationLabel = c.relation ? ` <span style="color:#a8a29e;">(${c.relation})</span>` : '';
+      const relationLabel = p.relation ? ` <span style="color:#a8a29e;">(${p.relation})</span>` : '';
       return `
           <p style="color:#292524;font-size:13.5px;line-height:1.6;margin:0 0 10px;">
-            <strong>${c.name}</strong>${relationLabel}${parts.length ? ' — ' + parts.join(' · ') : ''}
+            <strong>${p.name}</strong>${relationLabel}${parts.length ? ' — ' + parts.join(' · ') : ''}
           </p>`;
     })
     .join('');
 
   return `
         <div style="background:#f4f4f5;border-radius:12px;padding:16px 20px;margin:0 0 22px;">
-          <p style="color:#57534e;font-size:13px;font-weight:600;margin:0 0 12px;">Otros contactos de emergencia</p>
+          <p style="color:#57534e;font-size:13px;font-weight:600;margin:0 0 12px;">Otras personas de contacto</p>
           ${rows}
         </div>`;
 }
 
-function alertEmailHtml({ userName, shortName, contactName, personalMessage, lastCheckinAt, location, contacts, currentContactId }) {
+function alertEmailHtml({ userName, shortName, contactName, personalMessage, lastCheckinAt, location, referencePeople }) {
   const titleName = shortName || userName;
   const safeMessage = linkifyPhones((personalMessage || '').replace(/\n/g, '<br>'));
   const fecha = new Date(lastCheckinAt).toLocaleString('es-AR', {
@@ -136,20 +138,32 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
             Ver en Google Maps
           </a>
         </div>` : '';
-  const bodyHtml = `
+  const hasPersonalMessage = !!(personalMessage && personalMessage.trim());
+  const introHtml = hasPersonalMessage
+    ? `
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0 0 22px;">
           Hola ${contactName || ''},
         </p>
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
           <strong style="color:#1c1917;">${userName}</strong> no hizo check-in dentro del plazo configurado en su
-          app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático, con lo que
-          ${userName} dejó preparado para vos:
+          app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático.
+          ${userName} dejó preparado esta nota para vos:
         </p>
         <div style="background:#fdf6ec;border-radius:12px;padding:22px 24px;margin:0 0 22px;">
           <p style="color:#292524;font-size:14.5px;line-height:1.85;margin:0;">
-            ${safeMessage || `Si estás recibiendo este mensaje, significa que ${userName} no hizo su check-in y puede que le haya pasado algo. Por favor, verificá que esté bien.`}
+            ${safeMessage}
           </p>
-        </div>${locationBlock}${otherContactsBlock(contacts, currentContactId)}
+        </div>`
+    : `
+        <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:0 0 22px;">
+          Hola ${contactName || ''},
+        </p>
+        <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
+          <strong style="color:#1c1917;">${userName}</strong> no hizo check-in dentro del plazo configurado en su
+          app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático. Puede que le
+          haya pasado algo. Por favor, verificá que esté bien.
+        </p>`;
+  const bodyHtml = `${introHtml}${locationBlock}${referencePeopleBlock(referencePeople)}
         <p style="color:#a8a29e;font-size:12.5px;line-height:1.6;margin:0;">
           Esto no significa necesariamente que algo malo haya pasado — puede ser un olvido, un viaje o un problema
           con el teléfono. Pero si te parece razonable, intentá contactar a ${userName} o pasar a verificar que esté bien.

@@ -22,12 +22,9 @@ async function checkAllUsers() {
       const location = user.share_location && user.last_lat != null
         ? { lat: user.last_lat, lng: user.last_lng, at: user.last_location_at }
         : null;
+      const referencePeople = db.getReferencePeopleByUser(user.id);
 
       for (const c of contacts) {
-        if (!c.email) {
-          console.log(`[cron] Contacto ${c.name} no tiene email cargado, se omite el envío (solo queda listado para los demás).`);
-          continue;
-        }
         const combinedMessage = [user.default_message, c.message].filter(Boolean).join('\n\n');
         await sendEmail({
           to: c.email,
@@ -39,8 +36,7 @@ async function checkAllUsers() {
             personalMessage: combinedMessage,
             lastCheckinAt: user.last_checkin_at,
             location,
-            contacts,
-            currentContactId: c.id,
+            referencePeople,
           }),
         });
       }
