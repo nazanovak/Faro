@@ -50,13 +50,15 @@ function firstName(fullName) {
   return (fullName || '').trim().split(/\s+/)[0] || '';
 }
 
-// Convierte números de teléfono sueltos en un texto a links tel: tocables,
-// así en el celular el destinatario puede tocar y llamar directo.
+// Convierte números de teléfono sueltos en un texto a links de WhatsApp
+// tocables, así en el celular el destinatario puede tocar y escribir directo.
+function whatsappLink(rawPhone, label) {
+  const digitsOnly = rawPhone.replace(/[^\d]/g, '');
+  return `<a href="https://wa.me/${digitsOnly}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${label ?? rawPhone}</a>`;
+}
+
 function linkifyPhones(text) {
-  return text.replace(/(\+\d[\d\s\-\u2011]{6,}\d)/g, (match) => {
-    const clean = match.replace(/[\s\-\u2011]/g, '');
-    return `<a href="tel:${clean}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${match}</a>`;
-  });
+  return text.replace(/(\+\d[\d\s\-\u2011]{6,}\d)/g, (match) => whatsappLink(match, match));
 }
 
 const EMAIL_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif";
@@ -93,10 +95,7 @@ function referencePeopleBlock(referencePeople) {
     .map((p) => {
       const parts = [];
       if (p.phone) {
-        const cleanPhone = p.phone.replace(/[\s\-\u2011]/g, '');
-        parts.push(
-          `<a href="tel:${cleanPhone}" style="color:#0f172a;font-weight:600;text-decoration:none;border-bottom:1px solid #0f172a;">${p.phone}</a>`
-        );
+        parts.push(whatsappLink(p.phone));
       }
       if (p.email) {
         parts.push(
@@ -113,7 +112,7 @@ function referencePeopleBlock(referencePeople) {
 
   return `
         <div style="background:#f4f4f5;border-radius:12px;padding:16px 20px;margin:0 0 22px;">
-          <p style="color:#57534e;font-size:13px;font-weight:600;margin:0 0 12px;">Otras personas de contacto</p>
+          <p style="color:#57534e;font-size:13px;font-weight:600;margin:0 0 12px;">Personas de emergencia a las que podés acudir</p>
           ${rows}
         </div>`;
 }
@@ -146,7 +145,8 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
         </p>
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
           <strong style="color:#1c1917;">${userName}</strong> no hizo check-in dentro del plazo configurado en su
-          app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático.
+          app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático. Puede que le
+          haya pasado algo. Por favor, verificá que esté bien.<br><br>
           ${userName} dejó preparado esta nota para vos:
         </p>
         <div style="background:#fdf6ec;border-radius:12px;padding:22px 24px;margin:0 0 22px;">
