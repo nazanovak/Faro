@@ -244,6 +244,7 @@
         <input type="checkbox" id="sendRemindersCheck" style="width:auto;">
         <span style="margin:0;">Avisarme por mail cuando falte poco para hacer check-in (a mitad de plazo, 1 hora antes y 15 minutos antes)</span>
       </label>
+      <button class="btn-secondary" id="testReminderBtn" type="button" style="width:100%;margin-top:10px;">Enviar recordatorio de prueba</button>
       <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
         <input type="checkbox" id="pausedCheck" style="width:auto;">
         <span style="margin:0;">Pausar (por ejemplo, si estás de viaje con gente)</span>
@@ -491,6 +492,14 @@ $('saveSettings').addEventListener('click', async () => {
   $('settingsOk').classList.remove('hidden');
   setTimeout(() => $('settingsOk').classList.add('hidden'), 2000);
   renderStatus();
+});
+
+$('testReminderBtn').addEventListener('click', async (e) => {
+  const btn = e.target;
+  btn.textContent = 'Enviando...';
+  const res = await fetch('/api/test-reminder', { method: 'POST' });
+  btn.textContent = res.ok ? 'Enviado ✓ (revisá tu mail)' : 'Error al enviar';
+  setTimeout(() => { btn.textContent = 'Enviar recordatorio de prueba'; }, 2500);
 });
 
 // ---------- Contacts ----------

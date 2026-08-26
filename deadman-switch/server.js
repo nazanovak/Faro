@@ -7,7 +7,7 @@ const path = require('path');
 
 const db = require('./db');
 const { startScheduler } = require('./cron');
-const { sendEmail, alertEmailHtml, firstName } = require('./email');
+const { sendEmail, alertEmailHtml, warningEmailHtml, firstName } = require('./email');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -130,6 +130,28 @@ app.put('/api/settings', authRequired, (req, res) => {
     share_location: share_location !== undefined ? !!share_location : user.share_location,
     send_reminders: send_reminders !== undefined ? !!send_reminders : (user.send_reminders !== false),
   });
+  res.json({ ok: true });
+});
+
+// Mandar a la propia cuenta un mail de prueba del recordatorio de "falta
+// poco para tu check-in" (el mismo que se dispara automáticamente a mitad
+// de plazo, 1 hora antes y 15 minutos antes de que se cumpla el intervalo).
+app.post('/api/test-reminder', authRequired, async (req, res) => {
+  const user = db.findUserById(req.userId);
+  const { urgencyLabel } = req.body || {};
+
+  const result = await sendEmail({
+    to: user.email,
+    subject: '[PRUEBA] Falta poco para tu check-in',
+    html:
+      '<p style="color:#b45309"><strong>Este es un mail de prueba — no significa que se te esté por vencer el plazo de verdad.</strong></p>' +
+      warningEmailHtml({
+        userName: user.name || user.email,
+        urgencyLabel: urgencyLabel || '15 minutos',
+      }),
+  });
+
+  if (!result.ok) return res.status(500).json({ error: 'No se pudo enviar el mail. Revisá la configuración de BREVO_API_KEY.' });
   res.json({ ok: true });
 });
 
