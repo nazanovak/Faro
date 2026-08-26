@@ -168,6 +168,18 @@
   .faq-q:first-child{padding-top:4px;}
   .faq-q span{font-size:14.5px;font-weight:600;padding-right:12px;}
   .faq-a p{margin:0 0 16px;font-size:13.5px;line-height:1.65;color:var(--muted);}
+
+  .quick-nav{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  .quick-card{
+    position:relative;z-index:1;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 14px;box-shadow:var(--shadow-soft);text-align:center;text-decoration:none;color:var(--text);
+    display:flex;flex-direction:column;align-items:center;gap:6px;transition:border-color 0.2s ease,transform 0.15s ease;
+  }
+  .quick-card:hover{border-color:var(--amber);}
+  .quick-card:active{transform:scale(0.98);}
+  .quick-card svg{width:22px;height:22px;color:var(--amber);}
+  .quick-card-title{font-weight:600;font-size:13.5px;}
+  .quick-card-sub{font-size:11.5px;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -266,7 +278,20 @@
       <p class="muted" style="text-align:center;margin-top:4px;font-size:12px;" id="lastLocation"></p>
     </div>
 
-    <div class="section-title">Configuración</div>
+    <div class="quick-nav">
+      <a href="#contactsSection" class="quick-card">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        <span class="quick-card-title">Contactos</span>
+        <span class="quick-card-sub" id="quickContactsCount">—</span>
+      </a>
+      <a href="#configSection" class="quick-card">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <span class="quick-card-title">Configuración</span>
+        <span class="quick-card-sub" id="quickInterval">—</span>
+      </a>
+    </div>
+
+    <div class="section-title" id="configSection">Configuración</div>
     <div class="card">
       <label>Tu nombre</label>
       <input id="settingsName" type="text" placeholder="Ej: Naza">
@@ -292,7 +317,7 @@
       <div class="ok hidden" id="settingsOk">Guardado.</div>
     </div>
 
-    <div class="section-title">Tus contactos de emergencia</div>
+    <div class="section-title" id="contactsSection">Tus contactos de emergencia</div>
     <div id="contactsList"></div>
 
     <div class="card">
@@ -453,6 +478,12 @@ async function loadApp() {
   tickInterval = setInterval(renderStatus, 1000);
 }
 
+function updateQuickNav() {
+  const n = (state.contacts || []).length;
+  $('quickContactsCount').textContent = n === 0 ? 'Sin contactos' : n === 1 ? '1 activo' : `${n} activos`;
+  $('quickInterval').textContent = `cada ${state.user.checkin_interval_hours}h`;
+}
+
 function renderStatus() {
   const last = new Date(state.user.last_checkin_at).getTime();
   const intervalMs = state.user.checkin_interval_hours * 3600 * 1000;
@@ -498,6 +529,8 @@ function renderStatus() {
   } else {
     locEl.textContent = '';
   }
+
+  updateQuickNav();
 }
 
 function formatDate(isoDate) {
@@ -650,6 +683,7 @@ const AVATAR_GRADIENTS = [
 ];
 
 function renderContacts() {
+  updateQuickNav();
   const list = $('contactsList');
   if (state.contacts.length === 0) {
     list.innerHTML = '<p class="muted">Todavía no agregaste contactos. Si no hacés check-in, no hay a quién avisar.</p>';
