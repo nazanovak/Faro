@@ -54,7 +54,7 @@ module.exports = {
       checkin_interval_hours,
       last_checkin_at: nowIso(),
       send_reminders: true,
-      warning_half_sent: false,
+      warning_quarter_sent: false,
       warning_1h_sent: false,
       warning_15m_sent: false,
       alert_sent: false,

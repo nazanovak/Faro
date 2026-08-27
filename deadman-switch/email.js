@@ -193,7 +193,7 @@ function warningEmailHtml({ userName, urgencyLabel, title }) {
         </p>`;
   return emailShell({
     iconGradient: 'radial-gradient(circle at 35% 30%,#fef3c7,#f59e0b)',
-    title: title || 'Falta poco para tu check-in',
+    title: title || 'Falta poco para enviar tu señal',
     subtitle: '',
     bodyHtml,
   });

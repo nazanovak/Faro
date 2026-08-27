@@ -11,20 +11,20 @@ const GRACE_PERIOD_MS = 2 * 60 * 60 * 1000; // 2 horas
 // anterior (no desde el vencimiento del período de gracia).
 const WARNING_STAGES = [
   {
-    key: 'warning_half_sent',
-    subject: 'Recordatorio: ya pasó la mitad de tu plazo de check-in',
-    urgencyLabel: 'la mitad de tu tiempo',
-    thresholdMs: (intervalMs) => intervalMs / 2,
+    key: 'warning_quarter_sent',
+    subject: 'Recordatorio: te queda 1/4 de tu tiempo para dar señal',
+    urgencyLabel: '1/4 de tu tiempo',
+    thresholdMs: (intervalMs) => intervalMs - intervalMs / 4,
   },
   {
     key: 'warning_1h_sent',
-    subject: 'Recordatorio: te queda 1 hora para el check-in',
+    subject: 'Recordatorio: te queda 1 hora para dar señal',
     urgencyLabel: '1 hora',
     thresholdMs: (intervalMs) => intervalMs - 60 * 60 * 1000,
   },
   {
     key: 'warning_15m_sent',
-    subject: 'Recordatorio: te quedan 15 minutos para el check-in',
+    subject: 'Recordatorio: te quedan 15 minutos para dar señal',
     urgencyLabel: '15 minutos',
     thresholdMs: (intervalMs) => intervalMs - 15 * 60 * 1000,
   },
@@ -55,7 +55,7 @@ async function checkAllUsers() {
         const combinedMessage = [user.default_message, c.message].filter(Boolean).join('\n\n');
         await sendEmail({
           to: c.email,
-          subject: `Alerta: ${shortName} no dio señal`,
+          subject: `Faro no recibió la señal de ${shortName}`,
           html: alertEmailHtml({
             userName: fullName,
             shortName,
@@ -73,7 +73,7 @@ async function checkAllUsers() {
     }
 
     // Recordatorios preventivos al propio usuario (si los tiene activados),
-    // a mitad de plazo, 1 hora antes y 15 minutos antes de que se cumpla
+    // cuando queda 1/4 del plazo, 1 hora antes y 15 minutos antes de que se cumpla
     if (user.send_reminders !== false && !user.alert_sent) {
       for (const stage of WARNING_STAGES) {
         const threshold = stage.thresholdMs(intervalMs);
@@ -92,11 +92,12 @@ async function checkAllUsers() {
 }
 
 function startScheduler() {
-  // Corre cada 15 minutos. Ajustable segun necesites mas o menos precision.
-  cron.schedule('*/15 * * * *', () => {
+  // Corre cada 1 minuto para que los recordatorios (sobre todo el de "15
+  // minutos antes") salgan con precisión y no lleguen tarde.
+  cron.schedule('* * * * *', () => {
     checkAllUsers().catch((err) => console.error('[cron] Error en checkAllUsers:', err));
   });
-  console.log('[cron] Scheduler iniciado (corre cada 15 minutos).');
+  console.log('[cron] Scheduler iniciado (corre cada 1 minuto).');
 }
 
 module.exports = { startScheduler, checkAllUsers };

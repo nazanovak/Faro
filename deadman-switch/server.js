@@ -136,8 +136,8 @@ app.put('/api/settings', authRequired, (req, res) => {
 });
 
 // Mandar a la propia cuenta un mail de prueba del recordatorio de "falta
-// poco para tu check-in" (el mismo que se dispara automáticamente a mitad
-// de plazo, 1 hora antes y 15 minutos antes de que se cumpla el intervalo).
+// poco para dar señal" (el mismo que se dispara automáticamente cuando
+// queda 1/4 del plazo, 1 hora antes y 15 minutos antes de que se cumpla el intervalo).
 app.post('/api/test-reminder', authRequired, async (req, res) => {
   const user = db.findUserById(req.userId);
   const { urgencyLabel } = req.body || {};
@@ -150,7 +150,6 @@ app.post('/api/test-reminder', authRequired, async (req, res) => {
       warningEmailHtml({
         userName: user.name || user.email,
         urgencyLabel: urgencyLabel || '15 minutos',
-        title: 'Falta poco para enviar tu señal',
       }),
   });
 
