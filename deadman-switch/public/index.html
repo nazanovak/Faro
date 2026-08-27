@@ -79,8 +79,12 @@
 
   .brand-row{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:32px 0 24px;}
   .brand{display:flex;align-items:center;gap:10px;}
-  .brand .brand-icon{width:70px;height:70px;object-fit:contain;}
-  .brand .brand-wordmark{height:30px;width:auto;display:block;}
+  .brand .brand-dot{
+    width:34px;height:34px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 35% 30%,var(--amber-light),var(--amber));
+    box-shadow:0 0 16px 4px rgba(217,119,6,0.45);
+  }
+  .brand .brand-wordmark{height:22px;width:auto;display:block;}
   .theme-toggle{
     width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--surface);
     color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
@@ -142,6 +146,11 @@
   .contact-email{color:var(--muted);font-size:13px;}
   .contact-msg{color:var(--text);font-size:14px;margin-top:10px;white-space:pre-wrap;}
   .contact-actions{display:flex;gap:8px;margin-top:10px;}
+  .contact-compact .contact-head{cursor:pointer;}
+  .contact-compact .contact-actions{overflow:hidden;max-height:0;margin-top:0;transition:max-height 0.2s ease, margin-top 0.2s ease;}
+  .contact-compact.open .contact-actions{max-height:70px;margin-top:10px;}
+  .contact-toggle-chevron{width:18px;height:18px;flex:none;color:var(--muted);transition:transform 0.2s ease;}
+  .contact-compact.open .contact-toggle-chevron{transform:rotate(180deg);}
   .section-title{font-size:13px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text);margin:28px 4px 10px;font-weight:700;}
   .top-actions{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .status-badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:5px 14px;border-radius:20px;margin-top:6px;}
@@ -220,7 +229,7 @@
   </svg>
 
   <div class="brand-row">
-    <div class="brand"><img class="brand-icon" src="img/faro-icon.png" alt="Faro"><img class="brand-wordmark" src="img/faro-wordmark.png" alt="Faro"></div>
+    <div class="brand"><span class="brand-dot" aria-hidden="true"></span><img class="brand-wordmark" src="img/faro-wordmark.png" alt="Faro"></div>
     <button class="theme-toggle" id="themeToggle" aria-label="Cambiar entre modo claro y oscuro">
       <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
       <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path></svg>
@@ -914,7 +923,7 @@ function renderReferencePeople() {
     const initial = escapeHtml((p.name || '?').trim().charAt(0).toUpperCase() || '?');
     const subLine = [p.relation, p.phone, p.email].filter(Boolean).map(escapeHtml).join(' · ');
     return `
-    <div class="contact" data-id="${p.id}">
+    <div class="contact contact-compact" data-id="${p.id}">
       <div class="contact-view" id="rview-${p.id}">
         <div class="contact-head">
           <div class="contact-id">
@@ -924,6 +933,7 @@ function renderReferencePeople() {
               <div class="contact-email">${subLine}</div>
             </div>
           </div>
+          <svg class="contact-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
         </div>
         <div class="contact-actions">
           <button class="btn-secondary redit-btn" data-id="${p.id}">Editar</button>
@@ -947,6 +957,12 @@ function renderReferencePeople() {
     </div>
   `;
   }).join('');
+
+  list.querySelectorAll('.contact-compact .contact-head').forEach(head => {
+    head.addEventListener('click', () => {
+      head.closest('.contact-compact').classList.toggle('open');
+    });
+  });
 
   list.querySelectorAll('.rdelete-btn').forEach(btn => btn.addEventListener('click', async (e) => {
     const id = e.target.dataset.id;
