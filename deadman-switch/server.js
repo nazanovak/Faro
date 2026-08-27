@@ -14,6 +14,19 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'cambia-este-secreto-en-produccion';
 
+// Lista de emails con permisos de Administrador, separados por coma
+// (ej: ADMIN_EMAILS=vos@ejemplo.com,otro@ejemplo.com). Se define por .env
+// en vez de guardarse en data.json para no tener que migrar nada: alcanza
+// con agregar el mail ahí y reiniciar el servidor.
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+function isAdminEmail(email) {
+  return ADMIN_EMAILS.includes((email || '').toLowerCase());
+}
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -31,6 +44,18 @@ function authRequired(req, res, next) {
   }
 }
 
+// Además de estar logueado, el mail de la cuenta tiene que estar en
+// ADMIN_EMAILS. Se fija siempre contra la base (no contra el JWT) para que
+// sacar a alguien de ADMIN_EMAILS lo deslogueé del panel al toque.
+function adminRequired(req, res, next) {
+  const user = db.findUserById(req.userId);
+  if (!user || !isAdminEmail(user.email)) {
+    return res.status(403).json({ error: 'No tenés permisos de administrador' });
+  }
+  req.adminUser = user;
+  next();
+}
+
 function publicUser(u) {
   return {
     id: u.id,
@@ -46,6 +71,7 @@ function publicUser(u) {
     last_lat: u.last_lat ?? null,
     last_lng: u.last_lng ?? null,
     last_location_at: u.last_location_at ?? null,
+    is_admin: isAdminEmail(u.email),
   };
 }
 
@@ -291,13 +317,207 @@ app.post('/api/push/unsubscribe', authRequired, (req, res) => {
   res.json({ ok: true });
 });
 
-// Mandar una push de prueba a todos los dispositivos del usuario logueado
+// Mandar una push de prueba a todos los dispositivos del usuario logueado.
+// Solo cuentas de Administrador pueden hacerlo (las cuentas normales no
+// pueden mandarse push de prueba a sí mismas); el admin puede probar la de
+// cualquier usuario desde el panel de administración (/api/admin/.../push/test).
 app.post('/api/push/test', authRequired, async (req, res) => {
+  const requester = db.findUserById(req.userId);
+  if (!requester || !isAdminEmail(requester.email)) {
+    return res.status(403).json({ error: 'Esta función es solo para administradores' });
+  }
   const subs = db.getPushSubscriptionsByUser(req.userId);
   if (!subs.length) return res.status(400).json({ error: 'No hay dispositivos suscriptos a notificaciones' });
   const expired = await push.sendPushToUser(subs, {
     title: 'Notificación de prueba',
     body: 'Esto es una notificación de prueba. Si la ves, las push están funcionando.',
+    url: '/',
+  });
+  expired.forEach((endpoint) => db.deletePushSubscriptionByEndpoint(endpoint));
+  res.json({ ok: true });
+});
+
+// ---------- Panel de administración ----------
+// Todo lo que sigue requiere estar logueado Y tener el mail en ADMIN_EMAILS.
+
+function fullUser(u) {
+  return {
+    ...publicUser(u),
+    contacts: db.getContactsByUser(u.id),
+    referencePeople: db.getReferencePeopleByUser(u.id),
+    pushSubscriptionsCount: db.getPushSubscriptionsByUser(u.id).length,
+  };
+}
+
+// Lista completa de usuarios con sus contactos, personas de contacto y
+// configuración. Es la "base de datos" que ve el administrador.
+app.get('/api/admin/users', authRequired, adminRequired, (req, res) => {
+  const users = db.getAllUsers().map(fullUser);
+  res.json({ users });
+});
+
+app.get('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
+  const user = db.findUserById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  res.json({ user: fullUser(user) });
+});
+
+// Editar los datos/configuración de cualquier usuario
+app.put('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
+  const user = db.findUserById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  const { name, email, checkin_interval_hours, paused, default_message, share_location, send_reminders, password } = req.body || {};
+
+  if (email !== undefined && email.toLowerCase() !== user.email) {
+    const normalizedEmail = email.toLowerCase();
+    const existing = db.findUserByEmail(normalizedEmail);
+    if (existing && existing.id !== user.id) {
+      return res.status(409).json({ error: 'Ya existe una cuenta con ese email' });
+    }
+  }
+
+  const patch = {
+    name: name !== undefined ? name : user.name,
+    email: email !== undefined ? email.toLowerCase() : user.email,
+    checkin_interval_hours: checkin_interval_hours !== undefined ? Number(checkin_interval_hours) : user.checkin_interval_hours,
+    paused: paused !== undefined ? !!paused : user.paused,
+    default_message: default_message !== undefined ? default_message : user.default_message,
+    share_location: share_location !== undefined ? !!share_location : user.share_location,
+    send_reminders: send_reminders !== undefined ? !!send_reminders : user.send_reminders,
+  };
+  if (password) {
+    if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    patch.password_hash = bcrypt.hashSync(password, 10);
+  }
+
+  const updated = db.updateUser(req.params.id, patch);
+  res.json({ ok: true, user: fullUser(updated) });
+});
+
+app.delete('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
+  db.deleteUser(req.params.id);
+  res.json({ ok: true });
+});
+
+// ---- Contactos de un usuario, desde el admin ----
+app.post('/api/admin/users/:id/contacts', authRequired, adminRequired, (req, res) => {
+  const { name, email, message } = req.body || {};
+  if (!name || !email) return res.status(400).json({ error: 'Falta nombre o email del contacto' });
+  const contact = db.createContact({ user_id: req.params.id, name, email, message: message || '' });
+  res.json({ ok: true, contact });
+});
+
+app.put('/api/admin/users/:id/contacts/:cid', authRequired, adminRequired, (req, res) => {
+  const { name, email, message } = req.body || {};
+  const contact = db.findContact(req.params.cid, req.params.id);
+  if (!contact) return res.status(404).json({ error: 'Contacto no encontrado' });
+  db.updateContact(req.params.cid, req.params.id, {
+    name: name ?? contact.name,
+    email: email ?? contact.email,
+    message: message ?? contact.message,
+  });
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/users/:id/contacts/:cid', authRequired, adminRequired, (req, res) => {
+  db.deleteContact(req.params.cid, req.params.id);
+  res.json({ ok: true });
+});
+
+// Mail de prueba a un contacto puntual, disparado por el admin
+app.post('/api/admin/users/:id/contacts/:cid/test', authRequired, adminRequired, async (req, res) => {
+  const contact = db.findContact(req.params.cid, req.params.id);
+  if (!contact) return res.status(404).json({ error: 'Contacto no encontrado' });
+  const user = db.findUserById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  const fullName = user.name || user.email;
+  const shortName = firstName(user.name) || user.email;
+
+  const combinedMessage = [user.default_message, contact.message].filter(Boolean).join('\n\n');
+  const location = user.share_location && user.last_lat != null
+    ? { lat: user.last_lat, lng: user.last_lng, at: user.last_location_at }
+    : null;
+  const referencePeople = db.getReferencePeopleByUser(user.id);
+
+  const result = await sendEmail({
+    to: contact.email,
+    subject: `[PRUEBA - admin] Faro no recibió la señal de ${shortName}`,
+    html:
+      '<p style="color:#b45309"><strong>Este es un mail de prueba enviado por un administrador — no significa que haya pasado nada.</strong></p>' +
+      alertEmailHtml({
+        userName: fullName,
+        shortName,
+        contactName: contact.name,
+        personalMessage: combinedMessage,
+        lastCheckinAt: user.last_checkin_at,
+        location,
+        referencePeople,
+      }),
+  });
+
+  if (!result.ok) return res.status(500).json({ error: 'No se pudo enviar el mail. Revisá la configuración de BREVO_API_KEY.' });
+  res.json({ ok: true });
+});
+
+// ---- Personas de contacto de un usuario, desde el admin ----
+app.post('/api/admin/users/:id/reference-people', authRequired, adminRequired, (req, res) => {
+  const { name, relation, phone, email } = req.body || {};
+  if (!name || !(phone || email)) {
+    return res.status(400).json({ error: 'Falta nombre y al menos un teléfono o email' });
+  }
+  const person = db.createReferencePerson({ user_id: req.params.id, name, relation: relation || '', phone: phone || '', email: email || '' });
+  res.json({ ok: true, person });
+});
+
+app.put('/api/admin/users/:id/reference-people/:rid', authRequired, adminRequired, (req, res) => {
+  const { name, relation, phone, email } = req.body || {};
+  const person = db.findReferencePerson(req.params.rid, req.params.id);
+  if (!person) return res.status(404).json({ error: 'Persona de contacto no encontrada' });
+  db.updateReferencePerson(req.params.rid, req.params.id, {
+    name: name ?? person.name,
+    relation: relation ?? person.relation,
+    phone: phone ?? person.phone,
+    email: email ?? person.email,
+  });
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/users/:id/reference-people/:rid', authRequired, adminRequired, (req, res) => {
+  db.deleteReferencePerson(req.params.rid, req.params.id);
+  res.json({ ok: true });
+});
+
+// Mail de prueba del recordatorio "falta poco para dar señal", a nombre de
+// cualquier usuario, disparado por el admin
+app.post('/api/admin/users/:id/test-reminder', authRequired, adminRequired, async (req, res) => {
+  const user = db.findUserById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  const { urgencyLabel } = req.body || {};
+
+  const result = await sendEmail({
+    to: user.email,
+    subject: '[PRUEBA - admin] Falta poco para enviar tu señal',
+    html:
+      '<p style="color:#b45309"><strong>Este es un mail de prueba enviado por un administrador — no significa que se te esté por vencer el plazo de verdad.</strong></p>' +
+      warningEmailHtml({
+        userName: user.name || user.email,
+        urgencyLabel: urgencyLabel || '15 minutos',
+      }),
+  });
+
+  if (!result.ok) return res.status(500).json({ error: 'No se pudo enviar el mail. Revisá la configuración de BREVO_API_KEY.' });
+  res.json({ ok: true });
+});
+
+// Push de prueba a todos los dispositivos de cualquier usuario, disparado
+// por el admin (las cuentas normales no tienen forma de hacer esto ellas
+// mismas, ver /api/push/test más arriba)
+app.post('/api/admin/users/:id/push/test', authRequired, adminRequired, async (req, res) => {
+  const subs = db.getPushSubscriptionsByUser(req.params.id);
+  if (!subs.length) return res.status(400).json({ error: 'Ese usuario no tiene dispositivos suscriptos a notificaciones' });
+  const expired = await push.sendPushToUser(subs, {
+    title: 'Notificación de prueba (admin)',
+    body: 'Esto es una notificación de prueba enviada por un administrador.',
     url: '/',
   });
   expired.forEach((endpoint) => db.deletePushSubscriptionByEndpoint(endpoint));

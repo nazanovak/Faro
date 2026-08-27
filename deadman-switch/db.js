@@ -85,6 +85,10 @@ module.exports = {
     return load().users.filter((u) => !u.paused);
   },
 
+  getAllUsers() {
+    return load().users;
+  },
+
   deleteUser(id) {
     const data = load();
     data.users = data.users.filter((u) => u.id !== Number(id));

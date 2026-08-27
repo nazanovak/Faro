@@ -299,6 +299,7 @@
   <div id="app">
     <div class="top-actions">
       <span class="muted" id="greeting"></span>
+      <a class="btn-ghost hidden" id="adminLink" href="/admin.html" style="margin-right:14px;">Administración</a>
       <button class="btn-ghost" id="logoutBtn">Cerrar sesión</button>
     </div>
 
@@ -581,6 +582,7 @@ async function loadApp() {
   $('auth').style.display = 'none';
   $('app').style.display = 'block';
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
+  $('adminLink').classList.toggle('hidden', !state.user.is_admin);
   const [nameFirst, ...nameRest] = (state.user.name || '').trim().split(/\s+/);
   $('settingsName').value = state.user.name ? nameFirst : '';
   $('settingsLastName').value = nameRest.join(' ');
@@ -1112,7 +1114,9 @@ async function refreshPushUI() {
   if (sub) {
     statusText.textContent = 'Las notificaciones están activadas en este dispositivo.';
     enableBtn.style.display = 'none';
-    testBtn.style.display = 'block';
+    // El botón de "notificación de prueba" es solo para cuentas de
+    // Administrador; las cuentas normales no pueden mandarse push de prueba.
+    testBtn.style.display = (state.user && state.user.is_admin) ? 'block' : 'none';
     disableBtn.style.display = 'block';
   } else {
     statusText.textContent = 'Activá las notificaciones para recibir los recordatorios directo en tu celular, además del mail.';

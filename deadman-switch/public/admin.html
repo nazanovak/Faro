@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faro — Administración</title>
+<link rel="icon" href="/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+(function () {
+  try {
+    var stored = localStorage.getItem('faro-theme');
+    var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch (e) {}
+})();
+</script>
+<style>
+  :root, :root[data-theme="light"]{
+    --bg:#fdf6ec; --surface:#ffffff; --surface-2:#fdf6ec; --line:#eee0c8;
+    --text:#1c1917; --muted:#a8a29e; --amber:#d97706; --amber-light:#fde68a; --amber-ink:#2a1a03;
+    --green:#2f6b4f; --green-bg:rgba(95,168,138,0.14); --red:#b0413a; --red-bg:rgba(213,87,74,0.10);
+    --shadow-soft:0 6px 18px -10px rgba(120,80,20,0.16); --radius:14px;
+  }
+  :root[data-theme="dark"]{
+    --bg:#161211; --surface:#211c18; --surface-2:#161211; --line:rgba(255,255,255,0.08);
+    --text:#f5efe4; --muted:#9c8f80; --amber:#f0a83c; --amber-light:#fde68a; --amber-ink:#241701;
+    --green:#8fd6b2; --green-bg:rgba(95,168,138,0.16); --red:#e2726a; --red-bg:rgba(226,114,106,0.14);
+    --shadow-soft:0 6px 18px -10px rgba(0,0,0,0.45); --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;line-height:1.5;}
+  h1,h2,h3{font-family:Georgia,'Times New Roman',serif;font-weight:600;margin:0;}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 20px 80px;}
+  .top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px;flex-wrap:wrap;}
+  .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--amber);font-weight:700;margin:0 0 4px;}
+  a.back{color:var(--muted);font-size:13px;text-decoration:none;}
+  a.back:hover{color:var(--text);}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow-soft);}
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;margin-top:12px;}
+  label:first-child{margin-top:0;}
+  input, textarea{
+    width:100%;padding:9px 11px;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:8px;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;
+  }
+  input:focus, textarea:focus{outline:2px solid var(--amber);outline-offset:1px;border-color:var(--amber);}
+  textarea{resize:vertical;min-height:60px;}
+  .checkrow{display:flex;align-items:center;gap:8px;margin-top:12px;}
+  .checkrow input{width:auto;}
+  .checkrow label{margin:0;color:var(--text);font-size:13.5px;}
+  button{font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;border-radius:8px;border:none;padding:9px 14px;}
+  .btn-primary{background:radial-gradient(circle at 35% 30%,var(--amber-light),var(--amber));color:var(--amber-ink);}
+  .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--text);}
+  .btn-secondary:hover{border-color:var(--muted);}
+  .btn-danger{background:transparent;border:1px solid var(--red);color:var(--red);}
+  .btn-ghost{background:transparent;color:var(--muted);text-decoration:underline;padding:0;font-size:13px;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;}
+  .row > button{flex:none;}
+  .error{color:var(--red);font-size:13px;margin-top:8px;}
+  .ok{color:var(--green);font-size:13px;margin-top:8px;}
+  .muted{color:var(--muted);font-size:13px;}
+  .hidden{display:none !important;}
+
+  .user-card summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .user-card summary::-webkit-details-marker{display:none;}
+  .user-head{display:flex;align-items:center;gap:12px;min-width:0;}
+  .avatar{width:38px;height:38px;flex:none;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--amber-light),var(--amber));display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--amber-ink);}
+  .user-name{font-weight:600;font-size:15px;}
+  .user-email{color:var(--muted);font-size:12.5px;}
+  .badges{display:flex;gap:6px;flex:none;}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+  .badge-admin{background:var(--amber-light);color:var(--amber-ink);}
+  .badge-paused{background:var(--red-bg);color:var(--red);}
+  .badge-ok{background:var(--green-bg);color:var(--green);}
+  .chevron{width:16px;height:16px;flex:none;color:var(--muted);transition:transform 0.2s;}
+  details[open] .chevron{transform:rotate(180deg);}
+  .user-body{padding-top:18px;border-top:1px solid var(--line);margin-top:16px;}
+
+  .section-title{font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:700;margin:22px 0 10px;}
+  .section-title:first-child{margin-top:0;}
+  .subcard{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--surface-2);}
+  .subcard-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+  .subcard-head strong{font-size:14px;}
+  .empty-note{color:var(--muted);font-size:13px;padding:6px 2px;}
+
+  #loginGate{max-width:360px;margin:60px auto;}
+  #loginGate input{margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loginGate" class="card hidden">
+    <p class="eyebrow">Faro — Administración</p>
+    <h2 style="margin-bottom:6px;">Acceso restringido</h2>
+    <p class="muted" id="gateMsg">Esta cuenta no tiene permisos de administrador, o no iniciaste sesión.</p>
+    <p class="muted" style="margin-top:14px;"><a class="back" href="/">← Volver a la app</a></p>
+  </div>
+
+  <div id="adminApp" class="hidden">
+    <div class="top-row">
+      <div>
+        <p class="eyebrow">Faro — Administración</p>
+        <h1>Usuarios</h1>
+      </div>
+      <a class="back" href="/">← Volver a la app</a>
+    </div>
+
+    <p class="muted" id="userCount" style="margin-bottom:16px;"></p>
+    <div id="usersList"></div>
+  </div>
+</div>
+
+<template id="tpl-user">
+  <details class="card user-card">
+    <summary>
+      <div class="user-head">
+        <div class="avatar"></div>
+        <div style="min-width:0;">
+          <div class="user-name"></div>
+          <div class="user-email"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="badges"></div>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </summary>
+    <div class="user-body">
+
+      <div class="section-title">Configuración de la cuenta</div>
+      <label>Nombre</label>
+      <input class="f-name" type="text">
+      <label>Email</label>
+      <input class="f-email" type="email">
+      <label>Nueva contraseña (dejar vacío para no cambiarla)</label>
+      <input class="f-password" type="text" placeholder="Mínimo 6 caracteres">
+      <label>Cada cuántas horas tiene que avisar</label>
+      <input class="f-interval" type="number" min="1">
+      <label>Mensaje por defecto (se agrega a todos los mails de alerta)</label>
+      <textarea class="f-message"></textarea>
+      <div class="checkrow"><input class="f-paused" type="checkbox" id=""><label>Cuenta pausada (no se controla ni se manda alerta)</label></div>
+      <div class="checkrow"><input class="f-share-location" type="checkbox" id=""><label>Comparte ubicación en el check-in</label></div>
+      <div class="checkrow"><input class="f-send-reminders" type="checkbox" id=""><label>Recibe recordatorios antes de que venza el plazo</label></div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn-primary act-save">Guardar cambios</button>
+        <button class="btn-secondary act-test-reminder">Mandar recordatorio de prueba (mail)</button>
+        <button class="btn-secondary act-push-test">Mandar push de prueba</button>
+        <button class="btn-danger act-delete-user" style="margin-left:auto;">Borrar cuenta</button>
+      </div>
+      <div class="error hidden f-error"></div>
+      <div class="ok hidden f-ok"></div>
+      <p class="muted f-push-count" style="margin-top:6px;"></p>
+
+      <div class="section-title">Contactos de emergencia</div>
+      <div class="contacts-list"></div>
+      <div class="subcard add-contact-form">
+        <strong style="font-size:13px;">Agregar contacto</strong>
+        <label>Nombre</label><input class="nc-name" type="text">
+        <label>Email</label><input class="nc-email" type="email">
+        <label>Mensaje</label><textarea class="nc-message"></textarea>
+        <div class="row" style="margin-top:10px;"><button class="btn-secondary act-add-contact">Agregar</button></div>
+      </div>
+
+      <div class="section-title">Personas de contacto</div>
+      <div class="refpeople-list"></div>
+      <div class="subcard add-ref-form">
+        <strong style="font-size:13px;">Agregar persona de contacto</strong>
+        <label>Nombre</label><input class="nr-name" type="text">
+        <label>Relación</label><input class="nr-relation" type="text">
+        <label>Teléfono</label><input class="nr-phone" type="tel">
+        <label>Email</label><input class="nr-email" type="email">
+        <div class="row" style="margin-top:10px;"><button class="btn-secondary act-add-ref">Agregar</button></div>
+      </div>
+
+    </div>
+  </details>
+</template>
+
+<template id="tpl-contact">
+  <div class="subcard">
+    <div class="subcard-head"><strong class="c-title"></strong></div>
+    <label>Nombre</label><input class="c-name" type="text">
+    <label>Email</label><input class="c-email" type="email">
+    <label>Mensaje</label><textarea class="c-message"></textarea>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn-secondary act-save-contact">Guardar</button>
+      <button class="btn-secondary act-test-contact">Mandar mail de prueba</button>
+      <button class="btn-danger act-delete-contact" style="margin-left:auto;">Eliminar</button>
+    </div>
+    <div class="error hidden c-error"></div>
+    <div class="ok hidden c-ok"></div>
+  </div>
+</template>
+
+<template id="tpl-ref">
+  <div class="subcard">
+    <div class="subcard-head"><strong class="r-title"></strong></div>
+    <label>Nombre</label><input class="r-name" type="text">
+    <label>Relación</label><input class="r-relation" type="text">
+    <label>Teléfono</label><input class="r-phone" type="tel">
+    <label>Email</label><input class="r-email" type="email">
+    <div class="row" style="margin-top:10px;">
+      <button class="btn-secondary act-save-ref">Guardar</button>
+      <button class="btn-danger act-delete-ref" style="margin-left:auto;">Eliminar</button>
+    </div>
+    <div class="error hidden r-error"></div>
+    <div class="ok hidden r-ok"></div>
+  </div>
+</template>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function api(url, opts) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Error inesperado');
+  return data;
+}
+
+function initials(user) {
+  const base = (user.name || user.email || '?').trim();
+  return base.slice(0, 1).toUpperCase();
+}
+
+function renderContact(user, contact) {
+  const tpl = $('tpl-contact').content.cloneNode(true);
+  const root = tpl.querySelector('.subcard');
+  root.querySelector('.c-title').textContent = contact.name || '(sin nombre)';
+  root.querySelector('.c-name').value = contact.name || '';
+  root.querySelector('.c-email').value = contact.email || '';
+  root.querySelector('.c-message').value = contact.message || '';
+  const err = root.querySelector('.c-error');
+  const ok = root.querySelector('.c-ok');
+
+  root.querySelector('.act-save-contact').addEventListener('click', async () => {
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    try {
+      await api(`/api/admin/users/${user.id}/contacts/${contact.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: root.querySelector('.c-name').value,
+          email: root.querySelector('.c-email').value,
+          message: root.querySelector('.c-message').value,
+        }),
+      });
+      root.querySelector('.c-title').textContent = root.querySelector('.c-name').value || '(sin nombre)';
+      ok.textContent = 'Guardado.'; ok.classList.remove('hidden');
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  root.querySelector('.act-test-contact').addEventListener('click', async () => {
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    try {
+      await api(`/api/admin/users/${user.id}/contacts/${contact.id}/test`, { method: 'POST' });
+      ok.textContent = 'Mail de prueba enviado.'; ok.classList.remove('hidden');
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  root.querySelector('.act-delete-contact').addEventListener('click', async () => {
+    if (!confirm(`¿Eliminar el contacto "${contact.name}"?`)) return;
+    try {
+      await api(`/api/admin/users/${user.id}/contacts/${contact.id}`, { method: 'DELETE' });
+      root.remove();
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  return root;
+}
+
+function renderRef(user, person) {
+  const tpl = $('tpl-ref').content.cloneNode(true);
+  const root = tpl.querySelector('.subcard');
+  root.querySelector('.r-title').textContent = person.name || '(sin nombre)';
+  root.querySelector('.r-name').value = person.name || '';
+  root.querySelector('.r-relation').value = person.relation || '';
+  root.querySelector('.r-phone').value = person.phone || '';
+  root.querySelector('.r-email').value = person.email || '';
+  const err = root.querySelector('.r-error');
+  const ok = root.querySelector('.r-ok');
+
+  root.querySelector('.act-save-ref').addEventListener('click', async () => {
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    try {
+      await api(`/api/admin/users/${user.id}/reference-people/${person.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: root.querySelector('.r-name').value,
+          relation: root.querySelector('.r-relation').value,
+          phone: root.querySelector('.r-phone').value,
+          email: root.querySelector('.r-email').value,
+        }),
+      });
+      root.querySelector('.r-title').textContent = root.querySelector('.r-name').value || '(sin nombre)';
+      ok.textContent = 'Guardado.'; ok.classList.remove('hidden');
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  root.querySelector('.act-delete-ref').addEventListener('click', async () => {
+    if (!confirm(`¿Eliminar a "${person.name}"?`)) return;
+    try {
+      await api(`/api/admin/users/${user.id}/reference-people/${person.id}`, { method: 'DELETE' });
+      root.remove();
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  return root;
+}
+
+function renderUser(user) {
+  const tpl = $('tpl-user').content.cloneNode(true);
+  const root = tpl.querySelector('.user-card');
+
+  root.querySelector('.avatar').textContent = initials(user);
+  root.querySelector('.user-name').textContent = user.name || '(sin nombre)';
+  root.querySelector('.user-email').textContent = user.email;
+
+  const badges = root.querySelector('.badges');
+  if (user.is_admin) badges.insertAdjacentHTML('beforeend', '<span class="badge badge-admin">Admin</span>');
+  badges.insertAdjacentHTML('beforeend', user.paused
+    ? '<span class="badge badge-paused">Pausada</span>'
+    : '<span class="badge badge-ok">Activa</span>');
+
+  root.querySelector('.f-name').value = user.name || '';
+  root.querySelector('.f-email').value = user.email || '';
+  root.querySelector('.f-interval').value = user.checkin_interval_hours;
+  root.querySelector('.f-message').value = user.default_message || '';
+  root.querySelector('.f-paused').checked = !!user.paused;
+  root.querySelector('.f-share-location').checked = !!user.share_location;
+  root.querySelector('.f-send-reminders').checked = !!user.send_reminders;
+  root.querySelector('.f-push-count').textContent = user.pushSubscriptionsCount
+    ? `${user.pushSubscriptionsCount} dispositivo(s) suscripto(s) a notificaciones push.`
+    : 'Sin dispositivos suscriptos a notificaciones push.';
+
+  const err = root.querySelector('.f-error');
+  const ok = root.querySelector('.f-ok');
+
+  root.querySelector('.act-save').addEventListener('click', async () => {
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    try {
+      const body = {
+        name: root.querySelector('.f-name').value,
+        email: root.querySelector('.f-email').value,
+        checkin_interval_hours: Number(root.querySelector('.f-interval').value),
+        default_message: root.querySelector('.f-message').value,
+        paused: root.querySelector('.f-paused').checked,
+        share_location: root.querySelector('.f-share-location').checked,
+        send_reminders: root.querySelector('.f-send-reminders').checked,
+      };
+      const password = root.querySelector('.f-password').value.trim();
+      if (password) body.password = password;
+      await api(`/api/admin/users/${user.id}`, { method: 'PUT', body: JSON.stringify(body) });
+      root.querySelector('.f-password').value = '';
+      ok.textContent = 'Guardado.'; ok.classList.remove('hidden');
+      loadUsers();
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  root.querySelector('.act-test-reminder').addEventListener('click', async () => {
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    try {
+      await api(`/api/admin/users/${user.id}/test-reminder`, { method: 'POST' });
+      ok.textContent = 'Mail de recordatorio enviado.'; ok.classList.remove('hidden');
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  root.querySelector('.act-push-test').addEventListener('click', async () => {
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    try {
+      await api(`/api/admin/users/${user.id}/push/test`, { method: 'POST' });
+      ok.textContent = 'Notificación push enviada.'; ok.classList.remove('hidden');
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  root.querySelector('.act-delete-user').addEventListener('click', async () => {
+    if (!confirm(`¿Borrar la cuenta de "${user.email}" y todos sus datos? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api(`/api/admin/users/${user.id}`, { method: 'DELETE' });
+      root.remove();
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  const contactsList = root.querySelector('.contacts-list');
+  if (!user.contacts.length) contactsList.innerHTML = '<p class="empty-note">Sin contactos de emergencia.</p>';
+  user.contacts.forEach((c) => contactsList.appendChild(renderContact(user, c)));
+
+  root.querySelector('.act-add-contact').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const form = btn.closest('.add-contact-form');
+    const name = form.querySelector('.nc-name').value;
+    const email = form.querySelector('.nc-email').value;
+    const message = form.querySelector('.nc-message').value;
+    if (!name || !email) return alert('Falta nombre o email del contacto.');
+    try {
+      const { contact } = await api(`/api/admin/users/${user.id}/contacts`, {
+        method: 'POST', body: JSON.stringify({ name, email, message }),
+      });
+      contactsList.querySelector('.empty-note')?.remove();
+      contactsList.appendChild(renderContact(user, contact));
+      form.querySelector('.nc-name').value = '';
+      form.querySelector('.nc-email').value = '';
+      form.querySelector('.nc-message').value = '';
+    } catch (err2) { alert(err2.message); }
+  });
+
+  const refList = root.querySelector('.refpeople-list');
+  if (!user.referencePeople.length) refList.innerHTML = '<p class="empty-note">Sin personas de contacto.</p>';
+  user.referencePeople.forEach((p) => refList.appendChild(renderRef(user, p)));
+
+  root.querySelector('.act-add-ref').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const form = btn.closest('.add-ref-form');
+    const name = form.querySelector('.nr-name').value;
+    const relation = form.querySelector('.nr-relation').value;
+    const phone = form.querySelector('.nr-phone').value;
+    const email = form.querySelector('.nr-email').value;
+    if (!name || !(phone || email)) return alert('Falta nombre y al menos un teléfono o email.');
+    try {
+      const { person } = await api(`/api/admin/users/${user.id}/reference-people`, {
+        method: 'POST', body: JSON.stringify({ name, relation, phone, email }),
+      });
+      refList.querySelector('.empty-note')?.remove();
+      refList.appendChild(renderRef(user, person));
+      form.querySelector('.nr-name').value = '';
+      form.querySelector('.nr-relation').value = '';
+      form.querySelector('.nr-phone').value = '';
+      form.querySelector('.nr-email').value = '';
+    } catch (err2) { alert(err2.message); }
+  });
+
+  return root;
+}
+
+async function loadUsers() {
+  const { users } = await api('/api/admin/users');
+  const list = $('usersList');
+  list.innerHTML = '';
+  $('userCount').textContent = users.length === 1 ? '1 cuenta registrada' : `${users.length} cuentas registradas`;
+  users.forEach((u) => list.appendChild(renderUser(u)));
+}
+
+(async function init() {
+  try {
+    await loadUsers();
+    $('adminApp').classList.remove('hidden');
+  } catch (e) {
+    $('gateMsg').textContent = e.message === 'No autenticado' || e.message === 'Sesion invalida'
+      ? 'Iniciá sesión primero desde la app para poder entrar acá.'
+      : e.message;
+    $('loginGate').classList.remove('hidden');
+  }
+})();
+</script>
+</body>
+</html>
