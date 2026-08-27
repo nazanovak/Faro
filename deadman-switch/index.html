@@ -68,8 +68,9 @@
   }
   h1,h2,h3,.display{
     font-family:Georgia,'Times New Roman',serif;
-    font-weight:400;
+    font-weight:600;
     letter-spacing:-0.005em;
+    color:var(--text);
   }
   .wrap{max-width:520px;margin:0 auto;padding:0 20px 80px;position:relative;}
   .top-wash{position:absolute;top:0;left:0;right:0;height:280px;background:var(--bg-wash);z-index:0;pointer-events:none;}
@@ -141,7 +142,7 @@
   .contact-email{color:var(--muted);font-size:13px;}
   .contact-msg{color:var(--text);font-size:14px;margin-top:10px;white-space:pre-wrap;}
   .contact-actions{display:flex;gap:8px;margin-top:10px;}
-  .section-title{font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:28px 4px 10px;font-weight:600;}
+  .section-title{font-size:13px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text);margin:28px 4px 10px;font-weight:700;}
   .top-actions{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .status-badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:5px 14px;border-radius:20px;margin-top:6px;}
   .status-badge .status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;}
@@ -202,7 +203,7 @@
   }
   .page-back:hover{border-color:var(--amber);}
   .page-back svg{width:18px;height:18px;}
-  .page-title{font-family:Georgia,'Times New Roman',serif;font-size:19px;}
+  .page-title{font-family:Georgia,'Times New Roman',serif;font-size:20px;font-weight:600;color:var(--text);}
   .page-body{max-width:520px;margin:0 auto;padding:20px 20px 60px;}
   .page-body .section-title:first-child{margin-top:0;}
   body.page-locked{overflow:hidden;}
@@ -270,7 +271,7 @@
       <button class="btn-primary" id="authSubmit">Entrar</button>
       <div class="error hidden" id="authError"></div>
       <div class="toggle-link">
-        <span id="toggleText">¿No tenés cuenta? <a id="toggleLink">Creá una</a></span>
+        <span id="toggleText">¿No tenés cuenta? <a class="toggle-auth-link">Creá una</a></span>
       </div>
     </div>
   </div>
@@ -461,16 +462,20 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ---------- Auth screen toggling ----------
-$('toggleLink').addEventListener('click', () => {
+function toggleAuthMode() {
   isRegisterMode = !isRegisterMode;
   $('authTitle').textContent = isRegisterMode ? 'Crear cuenta' : 'Iniciar sesión';
   $('authSubmit').textContent = isRegisterMode ? 'Crear cuenta' : 'Entrar';
   $('registerFields').classList.toggle('hidden', !isRegisterMode);
   $('registerPasswordConfirm').classList.toggle('hidden', !isRegisterMode);
   $('toggleText').innerHTML = isRegisterMode
-    ? '¿Ya tenés cuenta? <a id="toggleLink2">Iniciá sesión</a>'
-    : '¿No tenés cuenta? <a id="toggleLink2">Creá una</a>';
-  document.getElementById('toggleLink2').addEventListener('click', () => $('toggleLink').click());
+    ? '¿Ya tenés cuenta? <a class="toggle-auth-link">Iniciá sesión</a>'
+    : '¿No tenés cuenta? <a class="toggle-auth-link">Creá una</a>';
+}
+// Delegación de eventos: el listener vive en el contenedor (que nunca se
+// reemplaza), así el link sigue funcionando aunque su innerHTML cambie.
+$('toggleText').addEventListener('click', (e) => {
+  if (e.target.classList.contains('toggle-auth-link')) toggleAuthMode();
 });
 
 // ---------- Mostrar / ocultar contraseña ----------
@@ -695,11 +700,11 @@ setupDisclosure('addRefPersonToggle', 'addRefPersonBody');
 // ---------- FAQ ----------
 const FAQ_ITEMS = [
   {
-    q: '¿Necesito activar los recordatorios de check-in?',
+    q: '¿Puedo activar los recordatorios de check-in?',
     a: 'No, vienen activados por defecto. Te avisamos por mail cuando falte poco para hacer check-in: a mitad de plazo, 1 hora antes y 15 minutos antes de que se cumpla tu intervalo configurado.',
   },
   {
-    q: '¿Necesito activar que se comparta mi ubicación?',
+    q: '¿Puedo activar que se comparta mi ubicación?',
     a: 'No, viene activada por defecto. El navegador te va a pedir permiso al tocar "Encender el Faro", y si lo das, tu última ubicación se incluye en el mail de alerta a tus contactos.',
   },
   {
@@ -738,10 +743,19 @@ function renderFaq() {
     </div>
   `).join('');
 
-  card.querySelectorAll('.faq-q').forEach((head) => {
+  const allHeads = card.querySelectorAll('.faq-q');
+  allHeads.forEach((head) => {
     head.addEventListener('click', () => {
       const body = $(head.dataset.target);
       const willOpen = !body.classList.contains('open');
+
+      // Cierra cualquier otra pregunta abierta antes de abrir la actual.
+      allHeads.forEach((otherHead) => {
+        if (otherHead === head) return;
+        $(otherHead.dataset.target).classList.remove('open');
+        otherHead.setAttribute('aria-expanded', 'false');
+      });
+
       body.classList.toggle('open', willOpen);
       head.setAttribute('aria-expanded', String(willOpen));
     });
