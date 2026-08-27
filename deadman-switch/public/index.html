@@ -78,8 +78,8 @@
 
   .brand-row{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:32px 0 24px;}
   .brand{display:flex;align-items:center;gap:10px;}
-  .brand .dot{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--amber-light),var(--amber));box-shadow:0 0 0 6px rgba(217,119,6,0.12);}
-  .brand span{font-family:Georgia,'Times New Roman',serif;font-size:21px;letter-spacing:0.01em;}
+  .brand .brand-icon{width:70px;height:70px;object-fit:contain;}
+  .brand .brand-wordmark{height:30px;width:auto;display:block;}
   .theme-toggle{
     width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--surface);
     color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
@@ -124,11 +124,12 @@
   .pulse-ring circle.track{fill:none;stroke:var(--ring-track);stroke-width:8;}
   .pulse-ring circle.progress{fill:none;stroke:var(--amber);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 0.6s ease, stroke 0.6s ease;}
   .pulse-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-  .pulse-dot{width:12px;height:12px;border-radius:50%;background:var(--amber);box-shadow:0 0 16px 5px rgba(217,119,6,0.5);animation:breathe 2.6s ease-in-out infinite;margin-bottom:8px;}
-  @keyframes breathe{0%,100%{transform:scale(1);opacity:0.9;}50%{transform:scale(1.35);opacity:0.5;}}
+  .pulse-dot{width:20px;height:20px;border-radius:50%;background:var(--amber);box-shadow:0 0 20px 6px rgba(217,119,6,0.55);margin-bottom:8px;position:relative;}
+  .pulse-dot::before{content:'';position:absolute;top:50%;left:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:rgba(217,119,6,0.5);animation:pulse-expand 2.6s ease-out infinite;z-index:-1;}
+  @keyframes pulse-expand{0%{transform:scale(1);opacity:0.6;}100%{transform:scale(11);opacity:0;}}
   .pulse-time{font-family:Georgia,'Times New Roman',serif;font-size:22px;text-align:center;padding:0 8px;}
   .pulse-label{color:var(--muted);font-size:12px;margin-top:2px;text-transform:uppercase;letter-spacing:0.06em;}
-  @media (prefers-reduced-motion: reduce){.pulse-dot{animation:none;}}
+  @media (prefers-reduced-motion: reduce){.pulse-dot::before{animation:none;}}
 
   .contact{border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:10px;}
   .contact-edit label{margin-top:12px;}
@@ -217,7 +218,7 @@
   </svg>
 
   <div class="brand-row">
-    <div class="brand"><div class="dot"></div><span>Faro</span></div>
+    <div class="brand"><img class="brand-icon" src="img/faro-icon.png" alt="Faro"><img class="brand-wordmark" src="img/faro-wordmark.png" alt="Faro"></div>
     <button class="theme-toggle" id="themeToggle" aria-label="Cambiar entre modo claro y oscuro">
       <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
       <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path></svg>
