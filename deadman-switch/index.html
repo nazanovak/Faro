@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faro — Check-in de seguridad</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#d97706">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Faro">
+<link rel="apple-touch-icon" href="/img/icon-192.png">
+<link rel="icon" href="/img/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
@@ -434,6 +442,18 @@
         <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
         <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
         <div class="ok hidden" id="settingsOk">Guardado.</div>
+      </div>
+
+      <div class="section-title">Notificaciones push</div>
+      <div class="card">
+        <p class="muted" style="margin:0 0 12px;" id="pushStatusText">
+          Activá las notificaciones para recibir los recordatorios directo en tu celular, además del mail.
+        </p>
+        <button class="btn-secondary" id="pushEnableBtn" type="button" style="width:100%;">Activar notificaciones</button>
+        <button class="btn-secondary" id="pushTestBtn" type="button" style="width:100%;margin-top:10px;display:none;">Enviar notificación de prueba</button>
+        <button class="btn-secondary" id="pushDisableBtn" type="button" style="width:100%;margin-top:10px;display:none;">Desactivar notificaciones</button>
+        <div class="ok hidden" id="pushOk"></div>
+        <div class="error hidden" id="pushError"></div>
       </div>
 
       <div class="section-title" style="color:var(--red);">Eliminar cuenta</div>
@@ -1044,7 +1064,138 @@ function escapeHtml(s) {
   return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
+// ---------- PWA: service worker + notificaciones push ----------
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+let swRegistration = null;
+
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return null;
+  try {
+    swRegistration = await navigator.serviceWorker.register('/sw.js');
+    return swRegistration;
+  } catch (e) {
+    console.warn('No se pudo registrar el service worker:', e);
+    return null;
+  }
+}
+
+function pushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
+async function refreshPushUI() {
+  const enableBtn = $('pushEnableBtn');
+  const testBtn = $('pushTestBtn');
+  const disableBtn = $('pushDisableBtn');
+  const statusText = $('pushStatusText');
+  if (!enableBtn) return;
+
+  if (!pushSupported()) {
+    statusText.textContent = 'Tu navegador no soporta notificaciones push. En iPhone, agregá esta app a tu pantalla de inicio desde Safari (Compartir → Agregar a pantalla de inicio) para poder activarlas.';
+    enableBtn.style.display = 'none';
+    testBtn.style.display = 'none';
+    disableBtn.style.display = 'none';
+    return;
+  }
+
+  const reg = swRegistration || (await registerServiceWorker());
+  const sub = reg ? await reg.pushManager.getSubscription() : null;
+
+  if (sub) {
+    statusText.textContent = 'Las notificaciones están activadas en este dispositivo.';
+    enableBtn.style.display = 'none';
+    testBtn.style.display = 'block';
+    disableBtn.style.display = 'block';
+  } else {
+    statusText.textContent = 'Activá las notificaciones para recibir los recordatorios directo en tu celular, además del mail.';
+    enableBtn.style.display = 'block';
+    testBtn.style.display = 'none';
+    disableBtn.style.display = 'none';
+  }
+}
+
+$('pushEnableBtn').addEventListener('click', async () => {
+  $('pushError').classList.add('hidden');
+  $('pushOk').classList.add('hidden');
+  try {
+    if (!pushSupported()) throw new Error('Este navegador no soporta notificaciones push.');
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      throw new Error('No diste permiso de notificaciones. Podés activarlo desde los ajustes del navegador/celular.');
+    }
+
+    const keyRes = await fetch('/api/push/vapid-public-key');
+    const keyData = await keyRes.json();
+    if (!keyData.configured) throw new Error('El servidor todavía no tiene configuradas las notificaciones push.');
+
+    const reg = swRegistration || (await registerServiceWorker());
+    if (!reg) throw new Error('No se pudo registrar el service worker.');
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+    });
+
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON() }),
+    });
+
+    $('pushOk').textContent = 'Notificaciones activadas.';
+    $('pushOk').classList.remove('hidden');
+    await refreshPushUI();
+  } catch (e) {
+    $('pushError').textContent = e.message || 'No se pudo activar las notificaciones.';
+    $('pushError').classList.remove('hidden');
+  }
+});
+
+$('pushDisableBtn').addEventListener('click', async () => {
+  try {
+    const reg = swRegistration || (await registerServiceWorker());
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    if (sub) {
+      await fetch('/api/push/unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      });
+      await sub.unsubscribe();
+    }
+    await refreshPushUI();
+  } catch (e) {
+    console.warn(e);
+  }
+});
+
+$('pushTestBtn').addEventListener('click', async () => {
+  $('pushError').classList.add('hidden');
+  $('pushOk').classList.add('hidden');
+  const res = await fetch('/api/push/test', { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) {
+    $('pushError').textContent = data.error || 'No se pudo mandar la notificación de prueba.';
+    $('pushError').classList.remove('hidden');
+    return;
+  }
+  $('pushOk').textContent = 'Notificación de prueba enviada.';
+  $('pushOk').classList.remove('hidden');
+});
+
+$('openConfigPage').addEventListener('click', () => { refreshPushUI(); });
+
 // ---------- Boot ----------
+registerServiceWorker();
 loadApp();
 </script>
 </body>

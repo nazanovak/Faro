@@ -144,7 +144,7 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
           Hola ${contactName || ''},
         </p>
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
-          <strong style="color:#1c1917;">${userName}</strong> no dio señal dentro del plazo configurado en su
+          <strong style="color:#1c1917;">${userName}</strong> no envió señal dentro del plazo configurado en su
           app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático. Puede que le
           haya pasado algo. Por favor, verificá que esté bien.<br><br>
           El usuario dejó preparado esta nota para vos:
@@ -159,7 +159,7 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
           Hola ${contactName || ''},
         </p>
         <p style="color:#44403c;font-size:14.5px;line-height:1.7;margin:-14px 0 22px;">
-          <strong style="color:#1c1917;">${userName}</strong> no dio señal dentro del plazo configurado en su
+          <strong style="color:#1c1917;">${userName}</strong> no envió señal dentro del plazo configurado en su
           app de seguridad (último check-in: ${fecha}). Por eso te llega este mensaje automático. Puede que le
           haya pasado algo. Por favor, verificá que esté bien.
         </p>`;
@@ -170,7 +170,7 @@ function alertEmailHtml({ userName, shortName, contactName, personalMessage, las
         </p>`;
   return emailShell({
     iconGradient: 'radial-gradient(circle at 35% 30%,#fde68a,#d97706)',
-    title: `${titleName} no dio señal`,
+    title: `${titleName} no envió señal`,
     subtitle: '',
     bodyHtml,
   });

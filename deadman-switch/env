@@ -1,0 +1,26 @@
+# Copia este archivo a .env y completá los valores
+
+# --- Envío de mails con Brevo (API HTTPS, gratis hasta 300 mails/día) ---
+# 1. Creá una cuenta gratis en https://www.brevo.com
+# 2. Andá a SMTP & API > API Keys y generá una API key
+# 3. Andá a Senders > agregá y verificá tu email (el que quieras que figure de remitente)
+# 4. Pegá esos valores acá abajo
+BREVO_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SENDER_EMAIL=tu-correo-verificado@ejemplo.com
+
+# Nombre que aparece como remitente
+APP_NAME=Check-In
+
+# Secreto para firmar las sesiones (cambialo por cualquier texto largo al azar)
+JWT_SECRET=cambia-esto-por-un-texto-largo-y-aleatorio
+
+# Puerto (Railway/Render lo asignan solos, no hace falta tocarlo)
+PORT=3000
+
+# --- Notificaciones push ---
+# Generadas automáticamente para que puedas probar ya mismo. Si querés,
+# más adelante podés regenerarlas con:
+#   node -e "console.log(require('web-push').generateVAPIDKeys())"
+VAPID_PUBLIC_KEY=BJnUMYdb4gDepQDG140X1oLeanEShMsGE-kcEKTu6ZSDS7RGaQt5fTWvxeIAjevMcvaiBVPmc_6NPzq4CJl9X2M
+VAPID_PRIVATE_KEY=tYeMbQ5iszi3M-6xpU1t7RosyP85wesUyXgKNIBVXd4
+VAPID_SUBJECT=mailto:tu-correo@gmail.com

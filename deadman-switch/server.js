@@ -8,6 +8,7 @@ const path = require('path');
 const db = require('./db');
 const { startScheduler } = require('./cron');
 const { sendEmail, alertEmailHtml, warningEmailHtml, firstName } = require('./email');
+const push = require('./push');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -265,6 +266,41 @@ app.put('/api/reference-people/:id', authRequired, (req, res) => {
 
 app.delete('/api/reference-people/:id', authRequired, (req, res) => {
   db.deleteReferencePerson(req.params.id, req.userId);
+  res.json({ ok: true });
+});
+
+// ---------- Notificaciones push ----------
+// La clave pública VAPID no es secreta: el frontend la necesita para
+// suscribirse. isConfigured indica si el server tiene las claves cargadas.
+app.get('/api/push/vapid-public-key', (req, res) => {
+  res.json({ publicKey: push.publicKey, configured: push.isConfigured });
+});
+
+app.post('/api/push/subscribe', authRequired, (req, res) => {
+  const { subscription } = req.body || {};
+  if (!subscription || !subscription.endpoint || !subscription.keys) {
+    return res.status(400).json({ error: 'Suscripción inválida' });
+  }
+  db.savePushSubscription({ user_id: req.userId, subscription });
+  res.json({ ok: true });
+});
+
+app.post('/api/push/unsubscribe', authRequired, (req, res) => {
+  const { endpoint } = req.body || {};
+  if (endpoint) db.deletePushSubscriptionByEndpoint(endpoint);
+  res.json({ ok: true });
+});
+
+// Mandar una push de prueba a todos los dispositivos del usuario logueado
+app.post('/api/push/test', authRequired, async (req, res) => {
+  const subs = db.getPushSubscriptionsByUser(req.userId);
+  if (!subs.length) return res.status(400).json({ error: 'No hay dispositivos suscriptos a notificaciones' });
+  const expired = await push.sendPushToUser(subs, {
+    title: 'Faro',
+    body: 'Esto es una notificación de prueba. Si la ves, las push están funcionando.',
+    url: '/',
+  });
+  expired.forEach((endpoint) => db.deletePushSubscriptionByEndpoint(endpoint));
   res.json({ ok: true });
 });
 

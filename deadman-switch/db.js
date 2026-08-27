@@ -20,6 +20,7 @@ function load() {
   // Compatibilidad con data.json viejos que todavía no tienen estos campos
   if (!data.reference_people) data.reference_people = [];
   if (!data.nextReferencePersonId) data.nextReferencePersonId = 1;
+  if (!data.push_subscriptions) data.push_subscriptions = [];
   return data;
 }
 
@@ -89,6 +90,7 @@ module.exports = {
     data.users = data.users.filter((u) => u.id !== Number(id));
     data.contacts = data.contacts.filter((c) => c.user_id !== Number(id));
     data.reference_people = data.reference_people.filter((p) => p.user_id !== Number(id));
+    data.push_subscriptions = data.push_subscriptions.filter((s) => s.user_id !== Number(id));
     save(data);
   },
 
@@ -183,6 +185,34 @@ module.exports = {
     data.reference_people = data.reference_people.filter(
       (p) => !(p.id === Number(id) && p.user_id === Number(userId))
     );
+    save(data);
+  },
+
+  // ---------- suscripciones push ----------
+  // Cada suscripción representa un dispositivo/navegador donde el usuario
+  // activó las notificaciones. Puede haber varias por usuario.
+  getPushSubscriptionsByUser(userId) {
+    return load().push_subscriptions.filter((s) => s.user_id === Number(userId));
+  },
+
+  savePushSubscription({ user_id, subscription }) {
+    const data = load();
+    const endpoint = subscription.endpoint;
+    // Si ya existe una suscripción con el mismo endpoint, la reemplaza
+    // (por ejemplo, cuando el navegador rota las claves).
+    data.push_subscriptions = data.push_subscriptions.filter((s) => s.endpoint !== endpoint);
+    data.push_subscriptions.push({
+      user_id: Number(user_id),
+      endpoint,
+      keys: subscription.keys,
+      created_at: nowIso(),
+    });
+    save(data);
+  },
+
+  deletePushSubscriptionByEndpoint(endpoint) {
+    const data = load();
+    data.push_subscriptions = data.push_subscriptions.filter((s) => s.endpoint !== endpoint);
     save(data);
   },
 };

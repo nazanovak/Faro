@@ -1,6 +1,16 @@
 const cron = require('node-cron');
 const db = require('./db');
 const { sendEmail, alertEmailHtml, warningEmailHtml, firstName } = require('./email');
+const push = require('./push');
+
+// Manda una notificación push a todos los dispositivos del usuario y
+// limpia las suscripciones que ya vencieron (app desinstalada, etc.)
+async function notifyUserPush(userId, payload) {
+  const subs = db.getPushSubscriptionsByUser(userId);
+  if (!subs.length) return;
+  const expired = await push.sendPushToUser(subs, payload);
+  expired.forEach((endpoint) => db.deletePushSubscriptionByEndpoint(endpoint));
+}
 
 // Después de cumplirse el plazo configurado, esperamos este margen extra
 // antes de avisar a los contactos de emergencia (por si el usuario se
@@ -69,6 +79,12 @@ async function checkAllUsers() {
       }
 
       db.updateUser(user.id, { alert_sent: true });
+      await notifyUserPush(user.id, {
+        title: 'Faro',
+        body: `No diste señal a tiempo. Ya se avisó a tus ${contacts.length} contacto(s) de emergencia.`,
+        url: '/',
+        tag: 'faro-alert',
+      });
       continue;
     }
 
@@ -83,6 +99,12 @@ async function checkAllUsers() {
             to: user.email,
             subject: stage.subject,
             html: warningEmailHtml({ userName: user.name || user.email, urgencyLabel: stage.urgencyLabel }),
+          });
+          await notifyUserPush(user.id, {
+            title: 'Faro — Recordatorio',
+            body: `Te queda ${stage.urgencyLabel} para dar señal.`,
+            url: '/',
+            tag: 'faro-warning',
           });
           db.updateUser(user.id, { [stage.key]: true });
         }

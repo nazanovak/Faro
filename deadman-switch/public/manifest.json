@@ -1,0 +1,32 @@
+{
+  "name": "Faro — Check-in de seguridad",
+  "short_name": "Faro",
+  "description": "App de check-in: si no hacés check-in a tiempo, se avisa por mail a tus contactos.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fdf6ec",
+  "theme_color": "#d97706",
+  "orientation": "portrait",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/img/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
