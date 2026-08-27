@@ -296,7 +296,7 @@ app.post('/api/push/test', authRequired, async (req, res) => {
   const subs = db.getPushSubscriptionsByUser(req.userId);
   if (!subs.length) return res.status(400).json({ error: 'No hay dispositivos suscriptos a notificaciones' });
   const expired = await push.sendPushToUser(subs, {
-    title: 'Faro',
+    title: 'Notificación de prueba',
     body: 'Esto es una notificación de prueba. Si la ves, las push están funcionando.',
     url: '/',
   });

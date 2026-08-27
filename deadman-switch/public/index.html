@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Faro — Check-in de seguridad</title>
+<title>Faro — Una señal de vida</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#d97706">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1122,28 +1122,43 @@ async function refreshPushUI() {
   }
 }
 
-$('pushEnableBtn').addEventListener('click', async () => {
-  $('pushError').classList.add('hidden');
-  $('pushOk').classList.add('hidden');
+async function enablePush({ silent = false } = {}) {
+  if (!silent) {
+    $('pushError').classList.add('hidden');
+    $('pushOk').classList.add('hidden');
+  }
   try {
-    if (!pushSupported()) throw new Error('Este navegador no soporta notificaciones push.');
+    if (!pushSupported()) {
+      if (!silent) throw new Error('Este navegador no soporta notificaciones push.');
+      return false;
+    }
 
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      throw new Error('No diste permiso de notificaciones. Podés activarlo desde los ajustes del navegador/celular.');
+      if (!silent) throw new Error('No diste permiso de notificaciones. Podés activarlo desde los ajustes del navegador/celular.');
+      return false;
     }
 
     const keyRes = await fetch('/api/push/vapid-public-key');
     const keyData = await keyRes.json();
-    if (!keyData.configured) throw new Error('El servidor todavía no tiene configuradas las notificaciones push.');
+    if (!keyData.configured) {
+      if (!silent) throw new Error('El servidor todavía no tiene configuradas las notificaciones push.');
+      return false;
+    }
 
     const reg = swRegistration || (await registerServiceWorker());
-    if (!reg) throw new Error('No se pudo registrar el service worker.');
+    if (!reg) {
+      if (!silent) throw new Error('No se pudo registrar el service worker.');
+      return false;
+    }
 
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
-    });
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+      });
+    }
 
     await fetch('/api/push/subscribe', {
       method: 'POST',
@@ -1151,16 +1166,22 @@ $('pushEnableBtn').addEventListener('click', async () => {
       body: JSON.stringify({ subscription: sub.toJSON() }),
     });
 
-    $('pushOk').textContent = 'Notificaciones activadas.';
-    $('pushOk').classList.remove('hidden');
+    if (!silent) {
+      $('pushOk').textContent = 'Notificaciones activadas.';
+      $('pushOk').classList.remove('hidden');
+    }
     await refreshPushUI();
+    return true;
   } catch (e) {
-    $('pushError').textContent = e.message || 'No se pudo activar las notificaciones.';
-    $('pushError').classList.remove('hidden');
+    if (!silent) {
+      $('pushError').textContent = e.message || 'No se pudo activar las notificaciones.';
+      $('pushError').classList.remove('hidden');
+    }
+    return false;
   }
-});
+}
 
-$('pushDisableBtn').addEventListener('click', async () => {
+async function disablePush() {
   try {
     const reg = swRegistration || (await registerServiceWorker());
     const sub = reg ? await reg.pushManager.getSubscription() : null;
@@ -1176,7 +1197,10 @@ $('pushDisableBtn').addEventListener('click', async () => {
   } catch (e) {
     console.warn(e);
   }
-});
+}
+
+$('pushEnableBtn').addEventListener('click', () => enablePush());
+$('pushDisableBtn').addEventListener('click', () => disablePush());
 
 $('pushTestBtn').addEventListener('click', async () => {
   $('pushError').classList.add('hidden');
@@ -1194,9 +1218,35 @@ $('pushTestBtn').addEventListener('click', async () => {
 
 $('openConfigPage').addEventListener('click', () => { refreshPushUI(); });
 
+// ---------- Notificaciones activadas "por defecto" ----------
+// Los navegadores no dejan que un sitio active notificaciones sin que el
+// usuario interactúe (por seguridad, para que no cualquier página las
+// prenda sola). Lo más parecido a "por defecto" es pedir el permiso en la
+// primera vez que el usuario toca algo en la app ya logueado, en lugar de
+// obligarlo a ir a buscar el botón en Configuración. Si dice que no, no
+// insistimos más (y el navegador tampoco deja volver a preguntar solo).
+function armAutoPushPrompt() {
+  if (!pushSupported()) return;
+  if (localStorage.getItem('faro_push_asked') === '1') return;
+  if (Notification.permission !== 'default') {
+    localStorage.setItem('faro_push_asked', '1');
+    return;
+  }
+
+  const trigger = async () => {
+    document.removeEventListener('click', trigger, true);
+    document.removeEventListener('touchend', trigger, true);
+    localStorage.setItem('faro_push_asked', '1');
+    await enablePush({ silent: true });
+  };
+
+  document.addEventListener('click', trigger, true);
+  document.addEventListener('touchend', trigger, true);
+}
+
 // ---------- Boot ----------
 registerServiceWorker();
-loadApp();
+loadApp().then(() => armAutoPushPrompt());
 </script>
 </body>
 </html>

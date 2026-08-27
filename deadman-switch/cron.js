@@ -80,7 +80,7 @@ async function checkAllUsers() {
 
       db.updateUser(user.id, { alert_sent: true });
       await notifyUserPush(user.id, {
-        title: 'Faro',
+        title: 'No enviaste señal a tiempo',
         body: `No diste señal a tiempo. Ya se avisó a tus ${contacts.length} contacto(s) de emergencia.`,
         url: '/',
         tag: 'faro-alert',
@@ -101,7 +101,7 @@ async function checkAllUsers() {
             html: warningEmailHtml({ userName: user.name || user.email, urgencyLabel: stage.urgencyLabel }),
           });
           await notifyUserPush(user.id, {
-            title: 'Faro — Recordatorio',
+            title: 'Recordatorio de check-in',
             body: `Te queda ${stage.urgencyLabel} para dar señal.`,
             url: '/',
             tag: 'faro-warning',
