@@ -128,20 +128,29 @@ app.get('/api/me', authRequired, (req, res) => {
 app.post('/api/checkin', authRequired, (req, res) => {
   const { lat, lng } = req.body || {};
   const user = db.findUserById(req.userId);
+  const nowAt = db.nowIso();
   const patch = {
-    last_checkin_at: db.nowIso(),
+    last_checkin_at: nowAt,
     warning_half_sent: false,
     warning_1h_sent: false,
     warning_15m_sent: false,
     alert_sent: false,
   };
   // Solo guardamos coordenadas si el usuario activó "compartir ubicación"
-  if (user.share_location && typeof lat === 'number' && typeof lng === 'number') {
+  const hasLocation = user.share_location && typeof lat === 'number' && typeof lng === 'number';
+  if (hasLocation) {
     patch.last_lat = lat;
     patch.last_lng = lng;
-    patch.last_location_at = db.nowIso();
+    patch.last_location_at = nowAt;
   }
   const updated = db.updateUser(req.userId, patch);
+  // Guarda un registro en el historial de check-ins (para que el admin lo vea)
+  db.addCheckinRecord({
+    user_id: req.userId,
+    at: nowAt,
+    lat: hasLocation ? lat : null,
+    lng: hasLocation ? lng : null,
+  });
   res.json({ ok: true, last_checkin_at: updated.last_checkin_at, last_lat: updated.last_lat, last_lng: updated.last_lng, last_location_at: updated.last_location_at });
 });
 
@@ -360,6 +369,13 @@ app.get('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
   const user = db.findUserById(req.params.id);
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
   res.json({ user: fullUser(user) });
+});
+
+// Historial completo de check-ins de un usuario (fecha + ubicación de cada uno)
+app.get('/api/admin/users/:id/checkins', authRequired, adminRequired, (req, res) => {
+  const user = db.findUserById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  res.json({ checkins: db.getCheckinsByUser(req.params.id) });
 });
 
 // Editar los datos/configuración de cualquier usuario

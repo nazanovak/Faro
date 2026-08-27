@@ -154,6 +154,25 @@
       <div class="ok hidden f-ok"></div>
       <p class="muted f-push-count" style="margin-top:6px;"></p>
 
+      <div class="section-title">Historial de check-ins</div>
+      <div class="subcard">
+        <div class="row" style="margin-bottom:2px;">
+          <button class="btn-secondary act-load-checkins">Ver historial</button>
+        </div>
+        <p class="muted checkins-empty hidden">Todavía no hay check-ins registrados para esta cuenta.</p>
+        <div class="checkins-table-wrap hidden" style="max-height:320px;overflow-y:auto;margin-top:10px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="text-align:left;color:var(--muted);">
+                <th style="padding:4px 6px;border-bottom:1px solid var(--line);">Fecha y hora</th>
+                <th style="padding:4px 6px;border-bottom:1px solid var(--line);">Ubicación</th>
+              </tr>
+            </thead>
+            <tbody class="checkins-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="section-title">Contactos de emergencia</div>
       <div class="contacts-list"></div>
       <div class="subcard add-contact-form">
@@ -384,6 +403,37 @@ function renderUser(user) {
       await api(`/api/admin/users/${user.id}`, { method: 'DELETE' });
       root.remove();
     } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  });
+
+  root.querySelector('.act-load-checkins').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const wrap = root.querySelector('.checkins-table-wrap');
+    const emptyMsg = root.querySelector('.checkins-empty');
+    const tbody = root.querySelector('.checkins-tbody');
+    btn.disabled = true;
+    btn.textContent = 'Cargando...';
+    try {
+      const { checkins } = await api(`/api/admin/users/${user.id}/checkins`);
+      if (!checkins.length) {
+        emptyMsg.classList.remove('hidden');
+        wrap.classList.add('hidden');
+      } else {
+        tbody.innerHTML = checkins.map((c) => {
+          const date = new Date(c.at).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' });
+          const loc = (c.lat != null && c.lng != null)
+            ? `<a href="https://www.google.com/maps?q=${c.lat},${c.lng}" target="_blank" rel="noopener">${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}</a>`
+            : '<span class="muted">Sin ubicación</span>';
+          return `<tr><td style="padding:6px;border-bottom:1px solid var(--line);white-space:nowrap;">${date}</td><td style="padding:6px;border-bottom:1px solid var(--line);">${loc}</td></tr>`;
+        }).join('');
+        wrap.classList.remove('hidden');
+        emptyMsg.classList.add('hidden');
+      }
+      btn.textContent = `Actualizar (${checkins.length})`;
+    } catch (e2) {
+      alert(e2.message);
+      btn.textContent = 'Ver historial';
+    }
+    btn.disabled = false;
   });
 
   const contactsList = root.querySelector('.contacts-list');

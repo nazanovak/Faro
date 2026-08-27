@@ -21,6 +21,8 @@ function load() {
   if (!data.reference_people) data.reference_people = [];
   if (!data.nextReferencePersonId) data.nextReferencePersonId = 1;
   if (!data.push_subscriptions) data.push_subscriptions = [];
+  if (!data.checkins) data.checkins = [];
+  if (!data.nextCheckinId) data.nextCheckinId = 1;
   return data;
 }
 
@@ -95,6 +97,7 @@ module.exports = {
     data.contacts = data.contacts.filter((c) => c.user_id !== Number(id));
     data.reference_people = data.reference_people.filter((p) => p.user_id !== Number(id));
     data.push_subscriptions = data.push_subscriptions.filter((s) => s.user_id !== Number(id));
+    data.checkins = (data.checkins || []).filter((c) => c.user_id !== Number(id));
     save(data);
   },
 
@@ -218,5 +221,42 @@ module.exports = {
     const data = load();
     data.push_subscriptions = data.push_subscriptions.filter((s) => s.endpoint !== endpoint);
     save(data);
+  },
+
+  // ---------- historial de check-ins ----------
+  // Cada vez que alguien toca "Estoy bien" queda un registro acá, con la
+  // ubicación de ese momento (si la tenía activada). Sirve para que el
+  // administrador pueda ver el historial completo de una cuenta.
+  MAX_CHECKINS_PER_USER: 500,
+
+  addCheckinRecord({ user_id, at, lat, lng }) {
+    const data = load();
+    const record = {
+      id: data.nextCheckinId++,
+      user_id: Number(user_id),
+      at: at || nowIso(),
+      lat: lat ?? null,
+      lng: lng ?? null,
+    };
+    data.checkins.push(record);
+    // Evita que el archivo crezca sin límite: se queda con los últimos
+    // MAX_CHECKINS_PER_USER registros de cada usuario.
+    const forUser = data.checkins.filter((c) => c.user_id === record.user_id);
+    if (forUser.length > module.exports.MAX_CHECKINS_PER_USER) {
+      const toDrop = forUser
+        .sort((a, b) => a.id - b.id)
+        .slice(0, forUser.length - module.exports.MAX_CHECKINS_PER_USER)
+        .map((c) => c.id);
+      data.checkins = data.checkins.filter((c) => !toDrop.includes(c.id));
+    }
+    save(data);
+    return record;
+  },
+
+  // Más reciente primero
+  getCheckinsByUser(userId) {
+    return load()
+      .checkins.filter((c) => c.user_id === Number(userId))
+      .sort((a, b) => new Date(b.at) - new Date(a.at));
   },
 };
