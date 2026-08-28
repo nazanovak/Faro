@@ -5,7 +5,7 @@
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const SENDER_EMAIL = process.env.SENDER_EMAIL;
-const APP_NAME = process.env.APP_NAME || 'Check-In';
+const APP_NAME = process.env.APP_NAME || 'Faro App';
 
 async function sendEmail({ to, subject, html }) {
   if (!BREVO_API_KEY || !SENDER_EMAIL) {

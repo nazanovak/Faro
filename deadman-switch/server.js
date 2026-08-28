@@ -171,6 +171,26 @@ app.put('/api/settings', authRequired, (req, res) => {
   res.json({ ok: true });
 });
 
+// Cambiar la propia contraseña (pidiendo la actual, como corresponde).
+// Sirve tanto para cuentas de administrador como para cuentas normales:
+// cada una cambia la suya. Para resetear la contraseña de OTRO usuario
+// que la olvidó, el admin lo hace desde /admin.html sin pedir la actual.
+app.put('/api/change-password', authRequired, (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Faltan datos' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+  }
+  const user = db.findUserById(req.userId);
+  if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
+    return res.status(401).json({ error: 'La contraseña actual no es correcta' });
+  }
+  db.updateUser(req.userId, { password_hash: bcrypt.hashSync(newPassword, 10) });
+  res.json({ ok: true });
+});
+
 // Mandar a la propia cuenta un mail de prueba del recordatorio de "falta
 // poco para dar señal" (el mismo que se dispara automáticamente cuando
 // queda 1/4 del plazo, 1 hora antes y 15 minutos antes de que se cumpla el intervalo).
@@ -416,25 +436,8 @@ app.delete('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
 });
 
 // ---- Contactos de un usuario, desde el admin ----
-app.post('/api/admin/users/:id/contacts', authRequired, adminRequired, (req, res) => {
-  const { name, email, message } = req.body || {};
-  if (!name || !email) return res.status(400).json({ error: 'Falta nombre o email del contacto' });
-  const contact = db.createContact({ user_id: req.params.id, name, email, message: message || '' });
-  res.json({ ok: true, contact });
-});
-
-app.put('/api/admin/users/:id/contacts/:cid', authRequired, adminRequired, (req, res) => {
-  const { name, email, message } = req.body || {};
-  const contact = db.findContact(req.params.cid, req.params.id);
-  if (!contact) return res.status(404).json({ error: 'Contacto no encontrado' });
-  db.updateContact(req.params.cid, req.params.id, {
-    name: name ?? contact.name,
-    email: email ?? contact.email,
-    message: message ?? contact.message,
-  });
-  res.json({ ok: true });
-});
-
+// El admin solo puede VER y BORRAR contactos, no modificar sus datos
+// (nombre/email/mensaje son del usuario, no se tocan desde acá).
 app.delete('/api/admin/users/:id/contacts/:cid', authRequired, adminRequired, (req, res) => {
   db.deleteContact(req.params.cid, req.params.id);
   res.json({ ok: true });

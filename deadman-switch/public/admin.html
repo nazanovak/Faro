@@ -130,6 +130,25 @@
     </summary>
     <div class="user-body">
 
+      <div class="section-title" style="margin-top:0;">Historial de check-ins</div>
+      <div class="subcard">
+        <div class="row" style="margin-bottom:2px;">
+          <button class="btn-secondary act-load-checkins">Ver historial</button>
+        </div>
+        <p class="muted checkins-empty hidden">Todavía no hay check-ins registrados para esta cuenta.</p>
+        <div class="checkins-table-wrap hidden" style="max-height:320px;overflow-y:auto;margin-top:10px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="text-align:left;color:var(--muted);">
+                <th style="padding:4px 6px;border-bottom:1px solid var(--line);">Fecha y hora</th>
+                <th style="padding:4px 6px;border-bottom:1px solid var(--line);">Ubicación</th>
+              </tr>
+            </thead>
+            <tbody class="checkins-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="section-title">Configuración de la cuenta</div>
       <label>Nombre</label>
       <input class="f-name" type="text">
@@ -154,34 +173,9 @@
       <div class="ok hidden f-ok"></div>
       <p class="muted f-push-count" style="margin-top:6px;"></p>
 
-      <div class="section-title">Historial de check-ins</div>
-      <div class="subcard">
-        <div class="row" style="margin-bottom:2px;">
-          <button class="btn-secondary act-load-checkins">Ver historial</button>
-        </div>
-        <p class="muted checkins-empty hidden">Todavía no hay check-ins registrados para esta cuenta.</p>
-        <div class="checkins-table-wrap hidden" style="max-height:320px;overflow-y:auto;margin-top:10px;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;">
-            <thead>
-              <tr style="text-align:left;color:var(--muted);">
-                <th style="padding:4px 6px;border-bottom:1px solid var(--line);">Fecha y hora</th>
-                <th style="padding:4px 6px;border-bottom:1px solid var(--line);">Ubicación</th>
-              </tr>
-            </thead>
-            <tbody class="checkins-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
       <div class="section-title">Contactos de emergencia</div>
+      <p class="muted" style="margin:-4px 0 10px;">Solo se pueden ver, mandar un mail de prueba o eliminar — sus datos los administra el usuario desde su cuenta.</p>
       <div class="contacts-list"></div>
-      <div class="subcard add-contact-form">
-        <strong style="font-size:13px;">Agregar contacto</strong>
-        <label>Nombre</label><input class="nc-name" type="text">
-        <label>Email</label><input class="nc-email" type="email">
-        <label>Mensaje</label><textarea class="nc-message"></textarea>
-        <div class="row" style="margin-top:10px;"><button class="btn-secondary act-add-contact">Agregar</button></div>
-      </div>
 
       <div class="section-title">Personas de contacto</div>
       <div class="refpeople-list"></div>
@@ -201,11 +195,9 @@
 <template id="tpl-contact">
   <div class="subcard">
     <div class="subcard-head"><strong class="c-title"></strong></div>
-    <label>Nombre</label><input class="c-name" type="text">
-    <label>Email</label><input class="c-email" type="email">
-    <label>Mensaje</label><textarea class="c-message"></textarea>
+    <p class="muted c-email-display" style="margin:4px 0 0;"></p>
+    <p class="muted c-message-display" style="margin:6px 0 0;white-space:pre-wrap;"></p>
     <div class="row" style="margin-top:10px;">
-      <button class="btn-secondary act-save-contact">Guardar</button>
       <button class="btn-secondary act-test-contact">Mandar mail de prueba</button>
       <button class="btn-danger act-delete-contact" style="margin-left:auto;">Eliminar</button>
     </div>
@@ -252,27 +244,10 @@ function renderContact(user, contact) {
   const tpl = $('tpl-contact').content.cloneNode(true);
   const root = tpl.querySelector('.subcard');
   root.querySelector('.c-title').textContent = contact.name || '(sin nombre)';
-  root.querySelector('.c-name').value = contact.name || '';
-  root.querySelector('.c-email').value = contact.email || '';
-  root.querySelector('.c-message').value = contact.message || '';
+  root.querySelector('.c-email-display').textContent = contact.email || '';
+  root.querySelector('.c-message-display').textContent = contact.message || '(sin mensaje)';
   const err = root.querySelector('.c-error');
   const ok = root.querySelector('.c-ok');
-
-  root.querySelector('.act-save-contact').addEventListener('click', async () => {
-    err.classList.add('hidden'); ok.classList.add('hidden');
-    try {
-      await api(`/api/admin/users/${user.id}/contacts/${contact.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          name: root.querySelector('.c-name').value,
-          email: root.querySelector('.c-email').value,
-          message: root.querySelector('.c-message').value,
-        }),
-      });
-      root.querySelector('.c-title').textContent = root.querySelector('.c-name').value || '(sin nombre)';
-      ok.textContent = 'Guardado.'; ok.classList.remove('hidden');
-    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
-  });
 
   root.querySelector('.act-test-contact').addEventListener('click', async () => {
     err.classList.add('hidden'); ok.classList.add('hidden');
@@ -439,25 +414,6 @@ function renderUser(user) {
   const contactsList = root.querySelector('.contacts-list');
   if (!user.contacts.length) contactsList.innerHTML = '<p class="empty-note">Sin contactos de emergencia.</p>';
   user.contacts.forEach((c) => contactsList.appendChild(renderContact(user, c)));
-
-  root.querySelector('.act-add-contact').addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    const form = btn.closest('.add-contact-form');
-    const name = form.querySelector('.nc-name').value;
-    const email = form.querySelector('.nc-email').value;
-    const message = form.querySelector('.nc-message').value;
-    if (!name || !email) return alert('Falta nombre o email del contacto.');
-    try {
-      const { contact } = await api(`/api/admin/users/${user.id}/contacts`, {
-        method: 'POST', body: JSON.stringify({ name, email, message }),
-      });
-      contactsList.querySelector('.empty-note')?.remove();
-      contactsList.appendChild(renderContact(user, contact));
-      form.querySelector('.nc-name').value = '';
-      form.querySelector('.nc-email').value = '';
-      form.querySelector('.nc-message').value = '';
-    } catch (err2) { alert(err2.message); }
-  });
 
   const refList = root.querySelector('.refpeople-list');
   if (!user.referencePeople.length) refList.innerHTML = '<p class="empty-note">Sin personas de contacto.</p>';

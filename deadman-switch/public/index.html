@@ -457,6 +457,17 @@
         <div class="error hidden" id="pushError"></div>
       </div>
 
+      <div class="section-title">Cambiar contraseña</div>
+      <div class="card">
+        <label>Contraseña actual</label>
+        <input id="currentPassword" type="password" autocomplete="current-password">
+        <label style="margin-top:16px;">Contraseña nueva</label>
+        <input id="newPassword" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+        <button class="btn-secondary" id="changePasswordBtn" style="width:100%;margin-top:16px;">Cambiar contraseña</button>
+        <div class="ok hidden" id="changePasswordOk">Contraseña actualizada.</div>
+        <div class="error hidden" id="changePasswordError"></div>
+      </div>
+
       <div class="section-title" style="color:var(--red);">Eliminar cuenta</div>
       <div class="card" style="border-color:var(--red);">
         <p class="muted" style="margin:0 0 12px;">Borra tu cuenta, tus contactos y todo tu historial. No se puede deshacer.</p>
@@ -717,9 +728,35 @@ $('saveSettings').addEventListener('click', async () => {
   renderStatus();
 });
 
+$('changePasswordBtn').addEventListener('click', async () => {
+  const currentPassword = $('currentPassword').value;
+  const newPassword = $('newPassword').value;
+  $('changePasswordError').classList.add('hidden');
+  $('changePasswordOk').classList.add('hidden');
+  if (!currentPassword || !newPassword) {
+    $('changePasswordError').textContent = 'Completá los dos campos.';
+    $('changePasswordError').classList.remove('hidden');
+    return;
+  }
+  const res = await fetch('/api/change-password', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    $('changePasswordError').textContent = data.error || 'No se pudo cambiar la contraseña.';
+    $('changePasswordError').classList.remove('hidden');
+    return;
+  }
+  $('currentPassword').value = '';
+  $('newPassword').value = '';
+  $('changePasswordOk').classList.remove('hidden');
+  setTimeout(() => $('changePasswordOk').classList.add('hidden'), 2500);
+});
+
 $('testReminderBtn').addEventListener('click', async (e) => {
-  const btn = e.target;
-  btn.textContent = 'Enviando...';
+  const btn = e.target;  btn.textContent = 'Enviando...';
   const res = await fetch('/api/test-reminder', { method: 'POST' });
   btn.textContent = res.ok ? 'Enviado ✓ (revisá tu mail)' : 'Error al enviar';
   setTimeout(() => { btn.textContent = 'Enviar recordatorio de prueba'; }, 2500);
