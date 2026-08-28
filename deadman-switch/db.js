@@ -14,7 +14,16 @@ const DB_PATH = path.join(DATA_DIR, 'data.json');
 
 function load() {
   if (!fs.existsSync(DB_PATH)) {
-    return { users: [], contacts: [], reference_people: [], nextUserId: 1, nextContactId: 1, nextReferencePersonId: 1 };
+    return {
+      users: [],
+      contacts: [],
+      reference_people: [],
+      friends: [],
+      nextUserId: 1,
+      nextContactId: 1,
+      nextReferencePersonId: 1,
+      nextFriendId: 1,
+    };
   }
   const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
   // Compatibilidad con data.json viejos que todavía no tienen estos campos
@@ -23,6 +32,8 @@ function load() {
   if (!data.push_subscriptions) data.push_subscriptions = [];
   if (!data.checkins) data.checkins = [];
   if (!data.nextCheckinId) data.nextCheckinId = 1;
+  if (!data.friends) data.friends = [];
+  if (!data.nextFriendId) data.nextFriendId = 1;
   return data;
 }
 
@@ -99,6 +110,9 @@ module.exports = {
     data.reference_people = data.reference_people.filter((p) => p.user_id !== Number(id));
     data.push_subscriptions = data.push_subscriptions.filter((s) => s.user_id !== Number(id));
     data.checkins = (data.checkins || []).filter((c) => c.user_id !== Number(id));
+    data.friends = (data.friends || []).filter(
+      (f) => f.from_user_id !== Number(id) && f.to_user_id !== Number(id)
+    );
     save(data);
   },
 
@@ -259,5 +273,62 @@ module.exports = {
     return load()
       .checkins.filter((c) => c.user_id === Number(userId))
       .sort((a, b) => new Date(b.at) - new Date(a.at));
+  },
+
+  // ---------- amigos ----------
+  // Cada fila es un vínculo entre dos usuarios de la app (a diferencia de
+  // los "contactos de emergencia", que no tienen cuenta). Se crea en estado
+  // "pending" cuando alguien pide agregar a otro por email, y pasa a
+  // "accepted" cuando el otro lo confirma. Mientras no esté aceptado, nadie
+  // ve la ubicación de nadie.
+  getFriendLinksForUser(userId) {
+    const uid = Number(userId);
+    return load().friends.filter((f) => f.from_user_id === uid || f.to_user_id === uid);
+  },
+
+  findFriendLink(id) {
+    return load().friends.find((f) => f.id === Number(id)) || null;
+  },
+
+  findFriendLinkBetween(userIdA, userIdB) {
+    const a = Number(userIdA);
+    const b = Number(userIdB);
+    return (
+      load().friends.find(
+        (f) =>
+          (f.from_user_id === a && f.to_user_id === b) ||
+          (f.from_user_id === b && f.to_user_id === a)
+      ) || null
+    );
+  },
+
+  createFriendRequest({ from_user_id, to_user_id }) {
+    const data = load();
+    const link = {
+      id: data.nextFriendId++,
+      from_user_id: Number(from_user_id),
+      to_user_id: Number(to_user_id),
+      status: 'pending',
+      created_at: nowIso(),
+    };
+    data.friends.push(link);
+    save(data);
+    return link;
+  },
+
+  acceptFriendLink(id) {
+    const data = load();
+    const link = data.friends.find((f) => f.id === Number(id));
+    if (!link) return null;
+    link.status = 'accepted';
+    link.accepted_at = nowIso();
+    save(data);
+    return link;
+  },
+
+  deleteFriendLink(id) {
+    const data = load();
+    data.friends = data.friends.filter((f) => f.id !== Number(id));
+    save(data);
   },
 };

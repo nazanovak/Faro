@@ -298,6 +298,81 @@ app.post('/api/contacts/:id/test', authRequired, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Amigos ----------
+// A diferencia de los "contactos de emergencia" (que son mails externos),
+// un amigo es otro usuario de la app. Una vez que se aceptan mutuamente,
+// cada uno puede ver la última ubicación que el otro compartió al hacer
+// check-in (si tiene "compartir ubicación" activado).
+function publicFriend(link, meId) {
+  const otherId = link.from_user_id === Number(meId) ? link.to_user_id : link.from_user_id;
+  const other = db.findUserById(otherId);
+  if (!other) return null;
+  const direction = link.from_user_id === Number(meId) ? 'outgoing' : 'incoming';
+  const base = {
+    link_id: link.id,
+    status: link.status,
+    direction,
+    id: other.id,
+    name: other.name || other.email,
+    email: other.email,
+    last_checkin_at: other.last_checkin_at,
+  };
+  if (link.status === 'accepted' && other.share_location && other.last_lat != null) {
+    base.location = { lat: other.last_lat, lng: other.last_lng, at: other.last_location_at };
+  } else {
+    base.location = null;
+  }
+  return base;
+}
+
+app.get('/api/friends', authRequired, (req, res) => {
+  const links = db.getFriendLinksForUser(req.userId);
+  const friends = links.map((l) => publicFriend(l, req.userId)).filter(Boolean);
+  res.json({ friends });
+});
+
+app.post('/api/friends', authRequired, (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Falta el email' });
+  const normalizedEmail = String(email).toLowerCase().trim();
+
+  const me = db.findUserById(req.userId);
+  if (normalizedEmail === (me.email || '').toLowerCase()) {
+    return res.status(400).json({ error: 'No podés agregarte a vos mismo' });
+  }
+
+  const target = db.findUserByEmail(normalizedEmail);
+  if (!target) {
+    return res.status(404).json({ error: 'No hay ninguna cuenta de Faro con ese email' });
+  }
+
+  const existing = db.findFriendLinkBetween(req.userId, target.id);
+  if (existing) {
+    return res.status(409).json({ error: 'Ya existe un pedido o amistad con esa persona' });
+  }
+
+  const link = db.createFriendRequest({ from_user_id: req.userId, to_user_id: target.id });
+  res.json({ ok: true, friend: publicFriend(link, req.userId) });
+});
+
+app.post('/api/friends/:id/accept', authRequired, (req, res) => {
+  const link = db.findFriendLink(req.params.id);
+  if (!link || link.to_user_id !== req.userId) {
+    return res.status(404).json({ error: 'Pedido no encontrado' });
+  }
+  const updated = db.acceptFriendLink(link.id);
+  res.json({ ok: true, friend: publicFriend(updated, req.userId) });
+});
+
+app.delete('/api/friends/:id', authRequired, (req, res) => {
+  const link = db.findFriendLink(req.params.id);
+  if (!link || (link.from_user_id !== req.userId && link.to_user_id !== req.userId)) {
+    return res.status(404).json({ error: 'No encontrado' });
+  }
+  db.deleteFriendLink(link.id);
+  res.json({ ok: true });
+});
+
 // ---------- Personas de contacto ----------
 // No reciben ningún mail: solo sus datos (nombre, relación y teléfono) se
 // incluyen dentro del mail que reciben los contactos de emergencia.
