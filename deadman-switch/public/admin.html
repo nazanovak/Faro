@@ -156,6 +156,8 @@
       <input class="f-email" type="email">
       <label>Nueva contraseña (dejar vacío para no cambiarla)</label>
       <input class="f-password" type="text" placeholder="Mínimo 6 caracteres">
+      <label>Repetir contraseña nueva</label>
+      <input class="f-password-confirm" type="text">
       <label>Cada cuántas horas tiene que avisar</label>
       <input class="f-interval" type="number" min="1">
       <label>Mensaje por defecto (se agrega a todos los mails de alerta)</label>
@@ -163,6 +165,8 @@
       <div class="checkrow"><input class="f-paused" type="checkbox" id=""><label>Cuenta pausada (no se controla ni se manda alerta)</label></div>
       <div class="checkrow"><input class="f-share-location" type="checkbox" id=""><label>Comparte ubicación en el check-in</label></div>
       <div class="checkrow"><input class="f-send-reminders" type="checkbox" id=""><label>Recibe recordatorios antes de que venza el plazo</label></div>
+      <div class="checkrow"><input class="f-no-emails" type="checkbox" id=""><label>No mandar recordatorios por mail (solo push)</label></div>
+      <p class="muted f-no-emails-hint" style="margin:2px 0 0;font-size:12px;">Solo se puede activar si el usuario tiene notificaciones push activas.</p>
       <div class="row" style="margin-top:14px;">
         <button class="btn-primary act-save">Guardar cambios</button>
         <button class="btn-secondary act-test-reminder">Mandar recordatorio de prueba (mail)</button>
@@ -178,15 +182,8 @@
       <div class="contacts-list"></div>
 
       <div class="section-title">Personas de contacto</div>
+      <p class="muted" style="margin:-4px 0 10px;">Solo se pueden ver o eliminar — sus datos los administra el usuario desde su cuenta.</p>
       <div class="refpeople-list"></div>
-      <div class="subcard add-ref-form">
-        <strong style="font-size:13px;">Agregar persona de contacto</strong>
-        <label>Nombre</label><input class="nr-name" type="text">
-        <label>Relación</label><input class="nr-relation" type="text">
-        <label>Teléfono</label><input class="nr-phone" type="tel">
-        <label>Email</label><input class="nr-email" type="email">
-        <div class="row" style="margin-top:10px;"><button class="btn-secondary act-add-ref">Agregar</button></div>
-      </div>
 
     </div>
   </details>
@@ -209,16 +206,13 @@
 <template id="tpl-ref">
   <div class="subcard">
     <div class="subcard-head"><strong class="r-title"></strong></div>
-    <label>Nombre</label><input class="r-name" type="text">
-    <label>Relación</label><input class="r-relation" type="text">
-    <label>Teléfono</label><input class="r-phone" type="tel">
-    <label>Email</label><input class="r-email" type="email">
+    <p class="muted r-relation-display" style="margin:4px 0 0;"></p>
+    <p class="muted r-phone-display" style="margin:2px 0 0;"></p>
+    <p class="muted r-email-display" style="margin:2px 0 0;"></p>
     <div class="row" style="margin-top:10px;">
-      <button class="btn-secondary act-save-ref">Guardar</button>
       <button class="btn-danger act-delete-ref" style="margin-left:auto;">Eliminar</button>
     </div>
     <div class="error hidden r-error"></div>
-    <div class="ok hidden r-ok"></div>
   </div>
 </template>
 
@@ -272,29 +266,10 @@ function renderRef(user, person) {
   const tpl = $('tpl-ref').content.cloneNode(true);
   const root = tpl.querySelector('.subcard');
   root.querySelector('.r-title').textContent = person.name || '(sin nombre)';
-  root.querySelector('.r-name').value = person.name || '';
-  root.querySelector('.r-relation').value = person.relation || '';
-  root.querySelector('.r-phone').value = person.phone || '';
-  root.querySelector('.r-email').value = person.email || '';
+  root.querySelector('.r-relation-display').textContent = person.relation || '';
+  root.querySelector('.r-phone-display').textContent = person.phone ? `Tel: ${person.phone}` : '';
+  root.querySelector('.r-email-display').textContent = person.email ? `Email: ${person.email}` : '';
   const err = root.querySelector('.r-error');
-  const ok = root.querySelector('.r-ok');
-
-  root.querySelector('.act-save-ref').addEventListener('click', async () => {
-    err.classList.add('hidden'); ok.classList.add('hidden');
-    try {
-      await api(`/api/admin/users/${user.id}/reference-people/${person.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          name: root.querySelector('.r-name').value,
-          relation: root.querySelector('.r-relation').value,
-          phone: root.querySelector('.r-phone').value,
-          email: root.querySelector('.r-email').value,
-        }),
-      });
-      root.querySelector('.r-title').textContent = root.querySelector('.r-name').value || '(sin nombre)';
-      ok.textContent = 'Guardado.'; ok.classList.remove('hidden');
-    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
-  });
 
   root.querySelector('.act-delete-ref').addEventListener('click', async () => {
     if (!confirm(`¿Eliminar a "${person.name}"?`)) return;
@@ -328,6 +303,11 @@ function renderUser(user) {
   root.querySelector('.f-paused').checked = !!user.paused;
   root.querySelector('.f-share-location').checked = !!user.share_location;
   root.querySelector('.f-send-reminders').checked = !!user.send_reminders;
+  const hasPush = user.pushSubscriptionsCount > 0;
+  const noEmailsCb = root.querySelector('.f-no-emails');
+  noEmailsCb.checked = hasPush && user.send_reminder_emails === false;
+  noEmailsCb.disabled = !hasPush;
+  root.querySelector('.f-no-emails-hint').style.display = hasPush ? 'none' : 'block';
   root.querySelector('.f-push-count').textContent = user.pushSubscriptionsCount
     ? `${user.pushSubscriptionsCount} dispositivo(s) suscripto(s) a notificaciones push.`
     : 'Sin dispositivos suscriptos a notificaciones push.';
@@ -346,11 +326,22 @@ function renderUser(user) {
         paused: root.querySelector('.f-paused').checked,
         share_location: root.querySelector('.f-share-location').checked,
         send_reminders: root.querySelector('.f-send-reminders').checked,
+        send_reminder_emails: !root.querySelector('.f-no-emails').checked,
       };
       const password = root.querySelector('.f-password').value.trim();
-      if (password) body.password = password;
+      const passwordConfirm = root.querySelector('.f-password-confirm').value.trim();
+      if (password || passwordConfirm) {
+        if (password !== passwordConfirm) {
+          err.textContent = 'Las dos contraseñas no coinciden.';
+          err.classList.remove('hidden');
+          return;
+        }
+        body.password = password;
+        body.confirmPassword = passwordConfirm;
+      }
       await api(`/api/admin/users/${user.id}`, { method: 'PUT', body: JSON.stringify(body) });
       root.querySelector('.f-password').value = '';
+      root.querySelector('.f-password-confirm').value = '';
       ok.textContent = 'Guardado.'; ok.classList.remove('hidden');
       loadUsers();
     } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
@@ -418,27 +409,6 @@ function renderUser(user) {
   const refList = root.querySelector('.refpeople-list');
   if (!user.referencePeople.length) refList.innerHTML = '<p class="empty-note">Sin personas de contacto.</p>';
   user.referencePeople.forEach((p) => refList.appendChild(renderRef(user, p)));
-
-  root.querySelector('.act-add-ref').addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    const form = btn.closest('.add-ref-form');
-    const name = form.querySelector('.nr-name').value;
-    const relation = form.querySelector('.nr-relation').value;
-    const phone = form.querySelector('.nr-phone').value;
-    const email = form.querySelector('.nr-email').value;
-    if (!name || !(phone || email)) return alert('Falta nombre y al menos un teléfono o email.');
-    try {
-      const { person } = await api(`/api/admin/users/${user.id}/reference-people`, {
-        method: 'POST', body: JSON.stringify({ name, relation, phone, email }),
-      });
-      refList.querySelector('.empty-note')?.remove();
-      refList.appendChild(renderRef(user, person));
-      form.querySelector('.nr-name').value = '';
-      form.querySelector('.nr-relation').value = '';
-      form.querySelector('.nr-phone').value = '';
-      form.querySelector('.nr-email').value = '';
-    } catch (err2) { alert(err2.message); }
-  });
 
   return root;
 }

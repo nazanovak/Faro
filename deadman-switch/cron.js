@@ -91,15 +91,22 @@ async function checkAllUsers() {
     // Recordatorios preventivos al propio usuario (si los tiene activados),
     // cuando queda 1/4 del plazo, 1 hora antes y 15 minutos antes de que se cumpla
     if (user.send_reminders !== false && !user.alert_sent) {
+      const hasPush = db.getPushSubscriptionsByUser(user.id).length > 0;
+      // Si el usuario desactivó el mail del recordatorio, solo se respeta
+      // cuando tiene push activo. Sin push, el mail se manda sí o sí (si no,
+      // se quedaría sin ninguna forma de enterarse).
+      const shouldSendEmail = user.send_reminder_emails !== false || !hasPush;
       for (const stage of WARNING_STAGES) {
         const threshold = stage.thresholdMs(intervalMs);
         if (threshold >= 0 && elapsed >= threshold && !user[stage.key]) {
           console.log(`[cron] Recordatorio (${stage.key}) a ${user.email}.`);
-          await sendEmail({
-            to: user.email,
-            subject: stage.subject,
-            html: warningEmailHtml({ userName: user.name || user.email, urgencyLabel: stage.urgencyLabel }),
-          });
+          if (shouldSendEmail) {
+            await sendEmail({
+              to: user.email,
+              subject: stage.subject,
+              html: warningEmailHtml({ userName: user.name || user.email, urgencyLabel: stage.urgencyLabel }),
+            });
+          }
           await notifyUserPush(user.id, {
             title: 'Recordatorio de check-in',
             body: `Te queda ${stage.urgencyLabel} para dar señal.`,

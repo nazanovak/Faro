@@ -64,6 +64,8 @@ function publicUser(u) {
     checkin_interval_hours: u.checkin_interval_hours,
     last_checkin_at: u.last_checkin_at,
     send_reminders: u.send_reminders !== false,
+    send_reminder_emails: u.send_reminder_emails !== false,
+    has_push_subscriptions: db.getPushSubscriptionsByUser(u.id).length > 0,
     alert_sent: !!u.alert_sent,
     paused: !!u.paused,
     default_message: u.default_message || '',
@@ -154,15 +156,29 @@ app.post('/api/checkin', authRequired, (req, res) => {
   res.json({ ok: true, last_checkin_at: updated.last_checkin_at, last_lat: updated.last_lat, last_lng: updated.last_lng, last_location_at: updated.last_location_at });
 });
 
+// No se puede desactivar el mail de los recordatorios si el usuario no
+// tiene ninguna notificación push activa: sin eso se quedaría sin forma
+// de enterarse. Devuelve el valor final que hay que guardar.
+function resolveSendReminderEmails(userId, requestedValue, currentValue) {
+  if (requestedValue === undefined) return currentValue;
+  if (requestedValue === false && db.getPushSubscriptionsByUser(userId).length === 0) {
+    return { error: 'Para desactivar los mails de recordatorio primero tenés que activar las notificaciones push.' };
+  }
+  return !!requestedValue;
+}
+
 app.put('/api/settings', authRequired, (req, res) => {
-  const { name, checkin_interval_hours, paused, default_message } = req.body || {};
+  const { name, checkin_interval_hours, paused, default_message, send_reminder_emails } = req.body || {};
   const user = db.findUserById(req.userId);
+  const resolvedEmails = resolveSendReminderEmails(req.userId, send_reminder_emails, user.send_reminder_emails !== false);
+  if (resolvedEmails && resolvedEmails.error) return res.status(400).json({ error: resolvedEmails.error });
   db.updateUser(req.userId, {
     name: name !== undefined ? name : user.name,
     checkin_interval_hours:
       checkin_interval_hours !== undefined ? Number(checkin_interval_hours) : user.checkin_interval_hours,
     paused: paused !== undefined ? !!paused : user.paused,
     default_message: default_message !== undefined ? default_message : user.default_message,
+    send_reminder_emails: resolvedEmails,
     // La ubicación y los recordatorios siempre están activos por defecto,
     // no son configurables desde acá.
     share_location: true,
@@ -176,12 +192,15 @@ app.put('/api/settings', authRequired, (req, res) => {
 // cada una cambia la suya. Para resetear la contraseña de OTRO usuario
 // que la olvidó, el admin lo hace desde /admin.html sin pedir la actual.
 app.put('/api/change-password', authRequired, (req, res) => {
-  const { currentPassword, newPassword } = req.body || {};
-  if (!currentPassword || !newPassword) {
+  const { currentPassword, newPassword, confirmPassword } = req.body || {};
+  if (!currentPassword || !newPassword || !confirmPassword) {
     return res.status(400).json({ error: 'Faltan datos' });
   }
   if (newPassword.length < 6) {
     return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ error: 'Las dos contraseñas nuevas no coinciden' });
   }
   const user = db.findUserById(req.userId);
   if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
@@ -402,7 +421,7 @@ app.get('/api/admin/users/:id/checkins', authRequired, adminRequired, (req, res)
 app.put('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
   const user = db.findUserById(req.params.id);
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-  const { name, email, checkin_interval_hours, paused, default_message, share_location, send_reminders, password } = req.body || {};
+  const { name, email, checkin_interval_hours, paused, default_message, share_location, send_reminders, send_reminder_emails, password, confirmPassword } = req.body || {};
 
   if (email !== undefined && email.toLowerCase() !== user.email) {
     const normalizedEmail = email.toLowerCase();
@@ -412,6 +431,9 @@ app.put('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
     }
   }
 
+  const resolvedEmails = resolveSendReminderEmails(req.params.id, send_reminder_emails, user.send_reminder_emails !== false);
+  if (resolvedEmails && resolvedEmails.error) return res.status(400).json({ error: resolvedEmails.error });
+
   const patch = {
     name: name !== undefined ? name : user.name,
     email: email !== undefined ? email.toLowerCase() : user.email,
@@ -420,9 +442,11 @@ app.put('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
     default_message: default_message !== undefined ? default_message : user.default_message,
     share_location: share_location !== undefined ? !!share_location : user.share_location,
     send_reminders: send_reminders !== undefined ? !!send_reminders : user.send_reminders,
+    send_reminder_emails: resolvedEmails,
   };
   if (password) {
     if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    if (password !== confirmPassword) return res.status(400).json({ error: 'Las dos contraseñas no coinciden' });
     patch.password_hash = bcrypt.hashSync(password, 10);
   }
 
@@ -479,28 +503,8 @@ app.post('/api/admin/users/:id/contacts/:cid/test', authRequired, adminRequired,
 });
 
 // ---- Personas de contacto de un usuario, desde el admin ----
-app.post('/api/admin/users/:id/reference-people', authRequired, adminRequired, (req, res) => {
-  const { name, relation, phone, email } = req.body || {};
-  if (!name || !(phone || email)) {
-    return res.status(400).json({ error: 'Falta nombre y al menos un teléfono o email' });
-  }
-  const person = db.createReferencePerson({ user_id: req.params.id, name, relation: relation || '', phone: phone || '', email: email || '' });
-  res.json({ ok: true, person });
-});
-
-app.put('/api/admin/users/:id/reference-people/:rid', authRequired, adminRequired, (req, res) => {
-  const { name, relation, phone, email } = req.body || {};
-  const person = db.findReferencePerson(req.params.rid, req.params.id);
-  if (!person) return res.status(404).json({ error: 'Persona de contacto no encontrada' });
-  db.updateReferencePerson(req.params.rid, req.params.id, {
-    name: name ?? person.name,
-    relation: relation ?? person.relation,
-    phone: phone ?? person.phone,
-    email: email ?? person.email,
-  });
-  res.json({ ok: true });
-});
-
+// Igual que con los contactos de emergencia: el admin solo puede VER y
+// BORRAR, no modificar los datos (son del usuario).
 app.delete('/api/admin/users/:id/reference-people/:rid', authRequired, adminRequired, (req, res) => {
   db.deleteReferencePerson(req.params.rid, req.params.id);
   res.json({ ok: true });

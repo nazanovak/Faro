@@ -441,6 +441,13 @@
         </label>
         <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
         <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
+        <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
+          <input type="checkbox" id="noEmailsCheck" style="width:auto;">
+          <span style="margin:0;">No mandar recordatorios por mail (solo por push)</span>
+        </label>
+        <p class="muted" id="noEmailsHint" style="margin:6px 0 0;font-size:12.5px;">
+          Activá primero las notificaciones push más abajo — sin push activo, los recordatorios se siguen mandando por mail siempre.
+        </p>
         <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
         <div class="ok hidden" id="settingsOk">Guardado.</div>
       </div>
@@ -463,6 +470,8 @@
         <input id="currentPassword" type="password" autocomplete="current-password">
         <label style="margin-top:16px;">Contraseña nueva</label>
         <input id="newPassword" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+        <label style="margin-top:16px;">Repetí la contraseña nueva</label>
+        <input id="newPasswordConfirm" type="password" autocomplete="new-password">
         <button class="btn-secondary" id="changePasswordBtn" style="width:100%;margin-top:16px;">Cambiar contraseña</button>
         <div class="ok hidden" id="changePasswordOk">Contraseña actualizada.</div>
         <div class="error hidden" id="changePasswordError"></div>
@@ -600,6 +609,7 @@ async function loadApp() {
   $('settingsDefaultMessage').value = state.user.default_message || '';
   $('settingsInterval').value = String(state.user.checkin_interval_hours);
   $('pausedCheck').checked = state.user.paused;
+  syncNoEmailsCheckbox();
   renderContacts();
   renderReferencePeople();
   renderStatus();
@@ -703,12 +713,29 @@ $('checkinBtn').addEventListener('click', async () => {
   renderStatus();
 });
 
+// El checkbox "no mandar mails" solo se puede tildar si el usuario tiene
+// notificaciones push activas — si no, se fuerza a que siga mandando mail.
+function syncNoEmailsCheckbox() {
+  const cb = $('noEmailsCheck');
+  const hint = $('noEmailsHint');
+  const hasPush = !!state.user.has_push_subscriptions;
+  cb.disabled = !hasPush;
+  if (!hasPush) {
+    cb.checked = false;
+    hint.style.display = 'block';
+  } else {
+    cb.checked = state.user.send_reminder_emails === false;
+    hint.style.display = 'none';
+  }
+}
+
 $('saveSettings').addEventListener('click', async () => {
   const firstName = $('settingsName').value.trim();
   const lastName = $('settingsLastName').value.trim();
   const name = [firstName, lastName].filter(Boolean).join(' ');
   const default_message = $('settingsDefaultMessage').value.trim();
-  await fetch('/api/settings', {
+  const send_reminder_emails = !$('noEmailsCheck').checked;
+  const res = await fetch('/api/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -716,12 +743,20 @@ $('saveSettings').addEventListener('click', async () => {
       default_message,
       checkin_interval_hours: $('settingsInterval').value,
       paused: $('pausedCheck').checked,
+      send_reminder_emails,
     }),
   });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    alert(data.error || 'No se pudo guardar.');
+    syncNoEmailsCheckbox();
+    return;
+  }
   state.user.name = name;
   state.user.default_message = default_message;
   state.user.checkin_interval_hours = Number($('settingsInterval').value);
   state.user.paused = $('pausedCheck').checked;
+  state.user.send_reminder_emails = send_reminder_emails;
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
   $('settingsOk').classList.remove('hidden');
   setTimeout(() => $('settingsOk').classList.add('hidden'), 2000);
@@ -731,17 +766,23 @@ $('saveSettings').addEventListener('click', async () => {
 $('changePasswordBtn').addEventListener('click', async () => {
   const currentPassword = $('currentPassword').value;
   const newPassword = $('newPassword').value;
+  const confirmPassword = $('newPasswordConfirm').value;
   $('changePasswordError').classList.add('hidden');
   $('changePasswordOk').classList.add('hidden');
-  if (!currentPassword || !newPassword) {
-    $('changePasswordError').textContent = 'Completá los dos campos.';
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    $('changePasswordError').textContent = 'Completá los tres campos.';
+    $('changePasswordError').classList.remove('hidden');
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    $('changePasswordError').textContent = 'Las dos contraseñas nuevas no coinciden.';
     $('changePasswordError').classList.remove('hidden');
     return;
   }
   const res = await fetch('/api/change-password', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ currentPassword, newPassword }),
+    body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -751,6 +792,7 @@ $('changePasswordBtn').addEventListener('click', async () => {
   }
   $('currentPassword').value = '';
   $('newPassword').value = '';
+  $('newPasswordConfirm').value = '';
   $('changePasswordOk').classList.remove('hidden');
   setTimeout(() => $('changePasswordOk').classList.add('hidden'), 2500);
 });
@@ -1155,12 +1197,15 @@ async function refreshPushUI() {
     // Administrador; las cuentas normales no pueden mandarse push de prueba.
     testBtn.style.display = (state.user && state.user.is_admin) ? 'block' : 'none';
     disableBtn.style.display = 'block';
+    if (state.user) state.user.has_push_subscriptions = true;
   } else {
     statusText.textContent = 'Activá las notificaciones para recibir los recordatorios directo en tu celular, además del mail.';
     enableBtn.style.display = 'block';
     testBtn.style.display = 'none';
     disableBtn.style.display = 'none';
+    if (state.user) state.user.has_push_subscriptions = false;
   }
+  syncNoEmailsCheckbox();
 }
 
 async function enablePush({ silent = false } = {}) {
