@@ -331,4 +331,16 @@ module.exports = {
     data.friends = data.friends.filter((f) => f.id !== Number(id));
     save(data);
   },
+
+  // Usado para guardar cuándo fue el último "pedime que encienda el Faro"
+  // en cada dirección del link (from -> to y to -> from), y así poder
+  // aplicar un cooldown y que no se pueda spamear al amigo.
+  updateFriendLink(id, patch) {
+    const data = load();
+    const link = data.friends.find((f) => f.id === Number(id));
+    if (!link) return null;
+    Object.assign(link, patch);
+    save(data);
+    return link;
+  },
 };

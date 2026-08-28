@@ -155,7 +155,10 @@
   .contact-name{font-weight:600;}
   .contact-email{color:var(--muted);font-size:13px;}
   .contact-msg{color:var(--text);font-size:14px;margin-top:10px;white-space:pre-wrap;}
-  .contact-actions{display:flex;gap:8px;margin-top:10px;}
+  .contact-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .btn-ping{background:transparent;border:1px solid var(--amber);color:var(--amber);font-size:13px;padding:7px 12px;}
+  .btn-ping:hover{background:rgba(217,119,6,0.08);}
+  .btn-ping:disabled{opacity:0.6;cursor:default;}
   .contact-compact .contact-head{cursor:pointer;}
   .contact-compact .contact-actions{overflow:hidden;max-height:0;margin-top:0;transition:max-height 0.2s ease, margin-top 0.2s ease;}
   .contact-compact.open .contact-actions{max-height:70px;margin-top:10px;}
@@ -1134,9 +1137,11 @@ function renderFriends() {
   list.innerHTML = accepted.map((f, i) => {
     const [g1, g2, ink] = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
     const initial = escapeHtml((f.name || '?').trim().charAt(0).toUpperCase() || '?');
-    const checkinTxt = f.last_checkin_at ? `Último check-in ${relativeTime(f.last_checkin_at)}` : 'Todavía no hizo check-in';
+    const checkinTxt = f.last_checkin_at
+      ? `Último check-in ${relativeTime(f.last_checkin_at)} · ${formatDate(f.last_checkin_at)}`
+      : 'Todavía no hizo check-in';
     const locTxt = f.location
-      ? `📍 Ubicación de ${relativeTime(f.location.at)}`
+      ? `📍 Ubicación de ${relativeTime(f.location.at)} · ${formatDate(f.location.at)} — <a href="https://www.google.com/maps?q=${f.location.lat},${f.location.lng}" target="_blank" rel="noopener" style="color:var(--amber);text-decoration:underline;">ver en Google Maps</a>`
       : '<span class="muted">No comparte su ubicación</span>';
     return `
     <div class="contact" data-link-id="${f.link_id}">
@@ -1152,6 +1157,7 @@ function renderFriends() {
         </div>
         <div class="contact-msg">${checkinTxt}<br>${locTxt}</div>
         <div class="contact-actions">
+          <button class="btn-ping friend-ping-btn" data-id="${f.link_id}">🔔 Pedirle que encienda el Faro</button>
           <button class="btn-danger friend-remove-btn" data-id="${f.link_id}">Eliminar</button>
         </div>
       </div>
@@ -1193,6 +1199,32 @@ function renderFriends() {
     if (!confirm('¿Confirmás?')) return;
     await fetch('/api/friends/' + id, { method: 'DELETE' });
     await loadFriends();
+  }));
+  document.querySelectorAll('.friend-ping-btn').forEach((btn) => btn.addEventListener('click', async (e) => {
+    const btnEl = e.currentTarget;
+    const id = btnEl.dataset.id;
+    const original = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Enviando...';
+    try {
+      const res = await fetch('/api/friends/' + id + '/request-checkin', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'No se pudo enviar el pedido.');
+        btnEl.textContent = original;
+        btnEl.disabled = false;
+        return;
+      }
+      btnEl.textContent = '✓ Pedido enviado';
+      setTimeout(() => {
+        btnEl.textContent = original;
+        btnEl.disabled = false;
+      }, 4000);
+    } catch (err) {
+      alert('No se pudo enviar el pedido. Revisá tu conexión.');
+      btnEl.textContent = original;
+      btnEl.disabled = false;
+    }
   }));
 
   renderFriendsMap(accepted.filter((f) => f.location));

@@ -373,6 +373,53 @@ app.delete('/api/friends/:id', authRequired, (req, res) => {
   res.json({ ok: true });
 });
 
+// Cooldown para que no se pueda estar mandando el mismo pedido cada rato.
+const CHECKIN_REQUEST_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 horas
+
+// Pedirle a un amigo que "encienda el Faro" (haga check-in), mandándole una
+// notificación push. Solo funciona si ya son amigos aceptados y el otro
+// tiene al menos un dispositivo suscripto a notificaciones push.
+app.post('/api/friends/:id/request-checkin', authRequired, async (req, res) => {
+  const link = db.findFriendLink(req.params.id);
+  if (!link || link.status !== 'accepted' || (link.from_user_id !== req.userId && link.to_user_id !== req.userId)) {
+    return res.status(404).json({ error: 'Amigo no encontrado' });
+  }
+
+  const requesterIsFrom = link.from_user_id === req.userId;
+  const otherId = requesterIsFrom ? link.to_user_id : link.from_user_id;
+  const other = db.findUserById(otherId);
+  if (!other) return res.status(404).json({ error: 'Amigo no encontrado' });
+
+  const cooldownField = requesterIsFrom ? 'last_checkin_request_from_at' : 'last_checkin_request_to_at';
+  const lastRequestAt = link[cooldownField];
+  if (lastRequestAt) {
+    const elapsed = Date.now() - new Date(lastRequestAt).getTime();
+    if (elapsed < CHECKIN_REQUEST_COOLDOWN_MS) {
+      const waitMin = Math.max(1, Math.ceil((CHECKIN_REQUEST_COOLDOWN_MS - elapsed) / 60000));
+      return res.status(429).json({ error: `Ya le pediste hace poco. Esperá ${waitMin} min para volver a pedirle.` });
+    }
+  }
+
+  const subs = db.getPushSubscriptionsByUser(other.id);
+  if (!subs.length) {
+    return res.status(400).json({ error: `${other.name || other.email} no tiene notificaciones push activadas, no se le puede avisar desde acá.` });
+  }
+
+  const me = db.findUserById(req.userId);
+  const myName = me.name || me.email;
+  const expired = await push.sendPushToUser(subs, {
+    title: 'Te están pidiendo que enciendas el Faro',
+    body: `${myName} quiere saber que estás bien. Abrí Faro y hacé check-in.`,
+    url: '/',
+    tag: 'faro-checkin-request',
+  });
+  expired.forEach((endpoint) => db.deletePushSubscriptionByEndpoint(endpoint));
+
+  db.updateFriendLink(link.id, { [cooldownField]: new Date().toISOString() });
+
+  res.json({ ok: true });
+});
+
 // ---------- Personas de contacto ----------
 // No reciben ningún mail: solo sus datos (nombre, relación y teléfono) se
 // incluyen dentro del mail que reciben los contactos de emergencia.

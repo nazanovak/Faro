@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Faro — Check-in de seguridad</title>
+<title>Faro — Una señal de vida</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#d97706">
 <meta name="mobile-web-app-capable" content="yes">
@@ -11,7 +11,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Faro">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
-<link rel="icon" href="/img/icon-192.png">
+<link rel="icon" href="/img/favicon.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
@@ -153,7 +155,10 @@
   .contact-name{font-weight:600;}
   .contact-email{color:var(--muted);font-size:13px;}
   .contact-msg{color:var(--text);font-size:14px;margin-top:10px;white-space:pre-wrap;}
-  .contact-actions{display:flex;gap:8px;margin-top:10px;}
+  .contact-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .btn-ping{background:transparent;border:1px solid var(--amber);color:var(--amber);font-size:13px;padding:7px 12px;}
+  .btn-ping:hover{background:rgba(217,119,6,0.08);}
+  .btn-ping:disabled{opacity:0.6;cursor:default;}
   .contact-compact .contact-head{cursor:pointer;}
   .contact-compact .contact-actions{overflow:hidden;max-height:0;margin-top:0;transition:max-height 0.2s ease, margin-top 0.2s ease;}
   .contact-compact.open .contact-actions{max-height:70px;margin-top:10px;}
@@ -247,7 +252,7 @@
   <!-- ================= AUTH ================= -->
   <div id="auth">
     <div class="card">
-      <p class="muted" style="margin-top:0;">Una señal de vida simple para quienes viven solos. Si no avisás que estás bien, avisamos nosotros por vos.</p>
+      <p class="muted" style="margin-top:0;">Una señal de vida simple para quienes viven solos o quieren compartir cómo están con quienes eligen. Si no avisás que estás bien, avisamos nosotros por vos.</p>
       <h2 id="authTitle" style="margin:16px 0 4px;">Iniciar sesión</h2>
 
       <div id="registerFields" class="hidden">
@@ -299,6 +304,7 @@
   <div id="app">
     <div class="top-actions">
       <span class="muted" id="greeting"></span>
+      <a class="btn-ghost hidden" id="adminLink" href="/admin.html" style="margin-right:14px;">Administración</a>
       <button class="btn-ghost" id="logoutBtn">Cerrar sesión</button>
     </div>
 
@@ -335,6 +341,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         <span class="quick-card-title">Configuración</span>
         <span class="quick-card-sub" id="quickInterval">—</span>
+      </button>
+      <button type="button" class="quick-card" id="openFriendsPage">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        <span class="quick-card-title">Amigos</span>
+        <span class="quick-card-sub" id="quickFriendsCount">—</span>
       </button>
     </div>
 
@@ -440,6 +451,13 @@
         </label>
         <label style="margin-top:16px;">Mensaje por defecto (se agrega antes del mensaje de cada contacto)</label>
         <textarea id="settingsDefaultMessage" placeholder="Ej: info de contacto de emergencia que va en todos los mails"></textarea>
+        <label style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-direction:row;">
+          <input type="checkbox" id="noEmailsCheck" style="width:auto;">
+          <span style="margin:0;">No mandar recordatorios por mail (solo por push)</span>
+        </label>
+        <p class="muted" id="noEmailsHint" style="margin:6px 0 0;font-size:12.5px;">
+          Activá primero las notificaciones push más abajo — sin push activo, los recordatorios se siguen mandando por mail siempre.
+        </p>
         <button class="btn-secondary" id="saveSettings" style="width:100%;margin-top:16px;">Guardar</button>
         <div class="ok hidden" id="settingsOk">Guardado.</div>
       </div>
@@ -456,10 +474,67 @@
         <div class="error hidden" id="pushError"></div>
       </div>
 
+      <div class="section-title">Cambiar contraseña</div>
+      <div class="card">
+        <label>Contraseña actual</label>
+        <input id="currentPassword" type="password" autocomplete="current-password">
+        <label style="margin-top:16px;">Contraseña nueva</label>
+        <input id="newPassword" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+        <label style="margin-top:16px;">Repetí la contraseña nueva</label>
+        <input id="newPasswordConfirm" type="password" autocomplete="new-password">
+        <button class="btn-secondary" id="changePasswordBtn" style="width:100%;margin-top:16px;">Cambiar contraseña</button>
+        <div class="ok hidden" id="changePasswordOk">Contraseña actualizada.</div>
+        <div class="error hidden" id="changePasswordError"></div>
+      </div>
+
       <div class="section-title" style="color:var(--red);">Eliminar cuenta</div>
       <div class="card" style="border-color:var(--red);">
         <p class="muted" style="margin:0 0 12px;">Borra tu cuenta, tus contactos y todo tu historial. No se puede deshacer.</p>
         <button class="btn-danger" id="deleteAccountBtn" style="width:100%;">Borrar mi cuenta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PÁGINA: AMIGOS ================= -->
+  <div class="page-overlay" id="page-friends">
+    <div class="page-header">
+      <button type="button" class="page-back" id="closeFriendsPage" aria-label="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <span class="page-title">Amigos</span>
+    </div>
+    <div class="page-body">
+      <p class="muted" style="margin:-4px 4px 16px;font-size:12.5px;">
+        Agregá a otros usuarios de Faro por su email. Una vez que se aceptan mutuamente,
+        cada uno ve dónde estaba el otro la última vez que hizo check-in (si tiene
+        "compartir ubicación" activado en Configuración).
+      </p>
+
+      <div id="friendsMapWrap" class="hidden" style="margin-bottom:20px;">
+        <div id="friendsMap" style="width:100%;height:260px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-card);"></div>
+      </div>
+
+      <div id="friendRequestsIncoming"></div>
+
+      <div class="section-title" id="friendsListTitle" style="margin-top:0;">Tus amigos</div>
+      <div id="friendsList"></div>
+      <p class="muted hidden" id="friendsEmptyMsg">Todavía no agregaste a nadie.</p>
+
+      <div id="friendRequestsOutgoing"></div>
+
+      <div class="card">
+        <div class="disclosure-head" id="addFriendToggle" aria-expanded="false">
+          <h3>Agregar amigo</h3>
+          <svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="disclosure-body" id="addFriendBody">
+          <label>Email de la otra persona</label>
+          <input id="fEmail" type="email" placeholder="amigo@ejemplo.com">
+          <p class="muted" style="margin:6px 0 0;font-size:12.5px;">Tiene que tener cuenta creada en Faro.</p>
+          <button class="btn-secondary" id="addFriend" style="width:100%;margin-top:16px;">Enviar pedido</button>
+          <div class="ok hidden" id="friendOk">Pedido enviado.</div>
+          <div class="error hidden" id="friendError"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -493,10 +568,13 @@ $('openContactsPage').addEventListener('click', () => openPage('page-contacts'))
 $('openConfigPage').addEventListener('click', () => openPage('page-config'));
 $('closeContactsPage').addEventListener('click', () => closePage('page-contacts'));
 $('closeConfigPage').addEventListener('click', () => closePage('page-config'));
+$('openFriendsPage').addEventListener('click', () => { openPage('page-friends'); loadFriends(); });
+$('closeFriendsPage').addEventListener('click', () => closePage('page-friends'));
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   closePage('page-contacts');
   closePage('page-config');
+  closePage('page-friends');
 });
 
 // ---------- Auth screen toggling ----------
@@ -569,6 +647,7 @@ $('logoutBtn').addEventListener('click', async () => {
   clearInterval(tickInterval);
   closePage('page-contacts');
   closePage('page-config');
+  closePage('page-friends');
   $('app').style.display = 'none';
   $('auth').style.display = 'block';
 });
@@ -581,15 +660,18 @@ async function loadApp() {
   $('auth').style.display = 'none';
   $('app').style.display = 'block';
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
+  $('adminLink').classList.toggle('hidden', !state.user.is_admin);
   const [nameFirst, ...nameRest] = (state.user.name || '').trim().split(/\s+/);
   $('settingsName').value = state.user.name ? nameFirst : '';
   $('settingsLastName').value = nameRest.join(' ');
   $('settingsDefaultMessage').value = state.user.default_message || '';
   $('settingsInterval').value = String(state.user.checkin_interval_hours);
   $('pausedCheck').checked = state.user.paused;
+  syncNoEmailsCheckbox();
   renderContacts();
   renderReferencePeople();
   renderStatus();
+  loadFriends();
   clearInterval(tickInterval);
   tickInterval = setInterval(renderStatus, 1000);
 }
@@ -598,6 +680,12 @@ function updateQuickNav() {
   const n = (state.contacts || []).length;
   $('quickContactsCount').textContent = n === 0 ? 'Sin contactos' : n === 1 ? '1 activo' : `${n} activos`;
   $('quickInterval').textContent = `cada ${state.user.checkin_interval_hours}h`;
+  const friends = state.friends || [];
+  const accepted = friends.filter((f) => f.status === 'accepted').length;
+  const pending = friends.filter((f) => f.status === 'pending' && f.direction === 'incoming').length;
+  $('quickFriendsCount').textContent = pending > 0
+    ? `${accepted} · ${pending} pedido${pending === 1 ? '' : 's'}`
+    : (accepted === 0 ? 'Sin amigos' : accepted === 1 ? '1 amigo' : `${accepted} amigos`);
 }
 
 function renderStatus() {
@@ -690,12 +778,29 @@ $('checkinBtn').addEventListener('click', async () => {
   renderStatus();
 });
 
+// El checkbox "no mandar mails" solo se puede tildar si el usuario tiene
+// notificaciones push activas — si no, se fuerza a que siga mandando mail.
+function syncNoEmailsCheckbox() {
+  const cb = $('noEmailsCheck');
+  const hint = $('noEmailsHint');
+  const hasPush = !!state.user.has_push_subscriptions;
+  cb.disabled = !hasPush;
+  if (!hasPush) {
+    cb.checked = false;
+    hint.style.display = 'block';
+  } else {
+    cb.checked = state.user.send_reminder_emails === false;
+    hint.style.display = 'none';
+  }
+}
+
 $('saveSettings').addEventListener('click', async () => {
   const firstName = $('settingsName').value.trim();
   const lastName = $('settingsLastName').value.trim();
   const name = [firstName, lastName].filter(Boolean).join(' ');
   const default_message = $('settingsDefaultMessage').value.trim();
-  await fetch('/api/settings', {
+  const send_reminder_emails = !$('noEmailsCheck').checked;
+  const res = await fetch('/api/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -703,21 +808,62 @@ $('saveSettings').addEventListener('click', async () => {
       default_message,
       checkin_interval_hours: $('settingsInterval').value,
       paused: $('pausedCheck').checked,
+      send_reminder_emails,
     }),
   });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    alert(data.error || 'No se pudo guardar.');
+    syncNoEmailsCheckbox();
+    return;
+  }
   state.user.name = name;
   state.user.default_message = default_message;
   state.user.checkin_interval_hours = Number($('settingsInterval').value);
   state.user.paused = $('pausedCheck').checked;
+  state.user.send_reminder_emails = send_reminder_emails;
   $('greeting').textContent = state.user.name ? `Hola, ${state.user.name}` : state.user.email;
   $('settingsOk').classList.remove('hidden');
   setTimeout(() => $('settingsOk').classList.add('hidden'), 2000);
   renderStatus();
 });
 
+$('changePasswordBtn').addEventListener('click', async () => {
+  const currentPassword = $('currentPassword').value;
+  const newPassword = $('newPassword').value;
+  const confirmPassword = $('newPasswordConfirm').value;
+  $('changePasswordError').classList.add('hidden');
+  $('changePasswordOk').classList.add('hidden');
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    $('changePasswordError').textContent = 'Completá los tres campos.';
+    $('changePasswordError').classList.remove('hidden');
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    $('changePasswordError').textContent = 'Las dos contraseñas nuevas no coinciden.';
+    $('changePasswordError').classList.remove('hidden');
+    return;
+  }
+  const res = await fetch('/api/change-password', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    $('changePasswordError').textContent = data.error || 'No se pudo cambiar la contraseña.';
+    $('changePasswordError').classList.remove('hidden');
+    return;
+  }
+  $('currentPassword').value = '';
+  $('newPassword').value = '';
+  $('newPasswordConfirm').value = '';
+  $('changePasswordOk').classList.remove('hidden');
+  setTimeout(() => $('changePasswordOk').classList.add('hidden'), 2500);
+});
+
 $('testReminderBtn').addEventListener('click', async (e) => {
-  const btn = e.target;
-  btn.textContent = 'Enviando...';
+  const btn = e.target;  btn.textContent = 'Enviando...';
   const res = await fetch('/api/test-reminder', { method: 'POST' });
   btn.textContent = res.ok ? 'Enviado ✓ (revisá tu mail)' : 'Error al enviar';
   setTimeout(() => { btn.textContent = 'Enviar recordatorio de prueba'; }, 2500);
@@ -734,6 +880,7 @@ function setupDisclosure(toggleId, bodyId) {
 }
 setupDisclosure('addContactToggle', 'addContactBody');
 setupDisclosure('addRefPersonToggle', 'addRefPersonBody');
+setupDisclosure('addFriendToggle', 'addFriendBody');
 setupDisclosure('faqToggle', 'faqBody');
 
 // ---------- FAQ ----------
@@ -924,6 +1071,231 @@ $('addContact').addEventListener('click', async () => {
   $('addContactToggle').setAttribute('aria-expanded', 'false');
 });
 
+// ---------- Amigos (otros usuarios de Faro, se ven la ubicación mutuamente) ----------
+let friendsMapInstance = null;
+let friendsMapMarkers = [];
+
+async function loadFriends() {
+  const res = await fetch('/api/friends');
+  if (!res.ok) return;
+  const data = await res.json();
+  state.friends = data.friends || [];
+  updateQuickNav();
+  renderFriends();
+}
+
+function relativeTime(iso) {
+  if (!iso) return null;
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'recién';
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `hace ${hours}h`;
+  const days = Math.round(hours / 24);
+  return `hace ${days}d`;
+}
+
+function renderFriends() {
+  const friends = state.friends || [];
+  const accepted = friends.filter((f) => f.status === 'accepted');
+  const incoming = friends.filter((f) => f.status === 'pending' && f.direction === 'incoming');
+  const outgoing = friends.filter((f) => f.status === 'pending' && f.direction === 'outgoing');
+
+  // ---- pedidos recibidos ----
+  const incomingEl = $('friendRequestsIncoming');
+  if (incoming.length === 0) {
+    incomingEl.innerHTML = '';
+  } else {
+    incomingEl.innerHTML = `
+      <div class="section-title" style="margin-top:0;">Pedidos recibidos</div>
+      ${incoming.map((f) => `
+        <div class="contact" data-link-id="${f.link_id}">
+          <div class="contact-view">
+            <div class="contact-head">
+              <div class="contact-id">
+                <div class="contact-avatar" style="background:linear-gradient(135deg,#fde68a,#d97706);color:#3a2405;">${escapeHtml((f.name || '?').charAt(0).toUpperCase())}</div>
+                <div>
+                  <div class="contact-name">${escapeHtml(f.name)}</div>
+                  <div class="contact-email">${escapeHtml(f.email)}</div>
+                </div>
+              </div>
+            </div>
+            <div class="contact-actions">
+              <button class="btn-secondary friend-accept-btn" data-id="${f.link_id}">Aceptar</button>
+              <button class="btn-danger friend-reject-btn" data-id="${f.link_id}">Rechazar</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    `;
+  }
+
+  // ---- amigos aceptados ----
+  const list = $('friendsList');
+  $('friendsEmptyMsg').classList.toggle('hidden', accepted.length !== 0);
+  list.innerHTML = accepted.map((f, i) => {
+    const [g1, g2, ink] = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
+    const initial = escapeHtml((f.name || '?').trim().charAt(0).toUpperCase() || '?');
+    const checkinTxt = f.last_checkin_at
+      ? `Último check-in ${relativeTime(f.last_checkin_at)} · ${formatDate(f.last_checkin_at)}`
+      : 'Todavía no hizo check-in';
+    const locTxt = f.location
+      ? `📍 Ubicación de ${relativeTime(f.location.at)} · ${formatDate(f.location.at)} — <a href="https://www.google.com/maps?q=${f.location.lat},${f.location.lng}" target="_blank" rel="noopener" style="color:var(--amber);text-decoration:underline;">ver en Google Maps</a>`
+      : '<span class="muted">No comparte su ubicación</span>';
+    return `
+    <div class="contact" data-link-id="${f.link_id}">
+      <div class="contact-view">
+        <div class="contact-head">
+          <div class="contact-id">
+            <div class="contact-avatar" style="background:linear-gradient(135deg, ${g1}, ${g2});color:${ink};">${initial}</div>
+            <div>
+              <div class="contact-name">${escapeHtml(f.name)}</div>
+              <div class="contact-email">${escapeHtml(f.email)}</div>
+            </div>
+          </div>
+        </div>
+        <div class="contact-msg">${checkinTxt}<br>${locTxt}</div>
+        <div class="contact-actions">
+          <button class="btn-ping friend-ping-btn" data-id="${f.link_id}">🔔 Pedirle que encienda el Faro</button>
+          <button class="btn-danger friend-remove-btn" data-id="${f.link_id}">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  `;
+  }).join('');
+
+  // ---- pedidos enviados, todavía sin aceptar ----
+  const outgoingEl = $('friendRequestsOutgoing');
+  outgoingEl.innerHTML = outgoing.length === 0 ? '' : `
+    <div class="section-title">Pedidos enviados</div>
+    ${outgoing.map((f) => `
+      <div class="contact" data-link-id="${f.link_id}">
+        <div class="contact-view">
+          <div class="contact-head">
+            <div class="contact-id">
+              <div class="contact-avatar" style="background:linear-gradient(135deg,#e5e0d8,#c9c3b8);color:#3a3428;">${escapeHtml((f.name || '?').charAt(0).toUpperCase())}</div>
+              <div>
+                <div class="contact-name">${escapeHtml(f.name)}</div>
+                <div class="contact-email muted">Esperando que acepte</div>
+              </div>
+            </div>
+          </div>
+          <div class="contact-actions">
+            <button class="btn-danger friend-remove-btn" data-id="${f.link_id}">Cancelar pedido</button>
+          </div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+
+  document.querySelectorAll('.friend-accept-btn').forEach((btn) => btn.addEventListener('click', async (e) => {
+    const id = e.target.dataset.id;
+    await fetch('/api/friends/' + id + '/accept', { method: 'POST' });
+    await loadFriends();
+  }));
+  document.querySelectorAll('.friend-reject-btn, .friend-remove-btn').forEach((btn) => btn.addEventListener('click', async (e) => {
+    const id = e.target.dataset.id;
+    if (!confirm('¿Confirmás?')) return;
+    await fetch('/api/friends/' + id, { method: 'DELETE' });
+    await loadFriends();
+  }));
+  document.querySelectorAll('.friend-ping-btn').forEach((btn) => btn.addEventListener('click', async (e) => {
+    const btnEl = e.currentTarget;
+    const id = btnEl.dataset.id;
+    const original = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Enviando...';
+    try {
+      const res = await fetch('/api/friends/' + id + '/request-checkin', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'No se pudo enviar el pedido.');
+        btnEl.textContent = original;
+        btnEl.disabled = false;
+        return;
+      }
+      btnEl.textContent = '✓ Pedido enviado';
+      setTimeout(() => {
+        btnEl.textContent = original;
+        btnEl.disabled = false;
+      }, 4000);
+    } catch (err) {
+      alert('No se pudo enviar el pedido. Revisá tu conexión.');
+      btnEl.textContent = original;
+      btnEl.disabled = false;
+    }
+  }));
+
+  renderFriendsMap(accepted.filter((f) => f.location));
+}
+
+function renderFriendsMap(withLocation) {
+  const wrap = $('friendsMapWrap');
+  if (withLocation.length === 0 || typeof L === 'undefined') {
+    wrap.classList.add('hidden');
+    return;
+  }
+  wrap.classList.remove('hidden');
+
+  if (!friendsMapInstance) {
+    friendsMapInstance = L.map('friendsMap', { scrollWheelZoom: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap',
+      maxZoom: 19,
+    }).addTo(friendsMapInstance);
+  }
+
+  friendsMapMarkers.forEach((m) => friendsMapInstance.removeLayer(m));
+  friendsMapMarkers = [];
+
+  const amberIcon = L.divIcon({
+    className: '',
+    html: '<div style="width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fde68a,#d97706);box-shadow:0 0 0 4px rgba(217,119,6,0.25);"></div>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+
+  withLocation.forEach((f) => {
+    const marker = L.marker([f.location.lat, f.location.lng], { icon: amberIcon }).addTo(friendsMapInstance);
+    marker.bindPopup(`<strong>${escapeHtml(f.name)}</strong><br>${escapeHtml(relativeTime(f.location.at) || '')}`);
+    friendsMapMarkers.push(marker);
+  });
+
+  const bounds = L.latLngBounds(withLocation.map((f) => [f.location.lat, f.location.lng]));
+  if (withLocation.length === 1) {
+    friendsMapInstance.setView(bounds.getCenter(), 13);
+  } else {
+    friendsMapInstance.fitBounds(bounds.pad(0.25));
+  }
+  setTimeout(() => friendsMapInstance.invalidateSize(), 150);
+}
+
+$('addFriend').addEventListener('click', async () => {
+  const email = $('fEmail').value.trim();
+  $('friendError').classList.add('hidden');
+  $('friendOk').classList.add('hidden');
+  if (!email) {
+    $('friendError').textContent = 'Ingresá un email.';
+    $('friendError').classList.remove('hidden');
+    return;
+  }
+  const res = await fetch('/api/friends', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    $('friendError').textContent = data.error || 'No se pudo enviar el pedido.';
+    $('friendError').classList.remove('hidden');
+    return;
+  }
+  $('fEmail').value = '';
+  $('friendOk').classList.remove('hidden');
+  setTimeout(() => $('friendOk').classList.add('hidden'), 2500);
+  await loadFriends();
+});
+
 // ---------- Personas de contacto (no reciben mail, solo se listan en el mail de los contactos) ----------
 const MAX_REF_PEOPLE = 5;
 
@@ -1112,14 +1484,19 @@ async function refreshPushUI() {
   if (sub) {
     statusText.textContent = 'Las notificaciones están activadas en este dispositivo.';
     enableBtn.style.display = 'none';
-    testBtn.style.display = 'block';
+    // El botón de "notificación de prueba" es solo para cuentas de
+    // Administrador; las cuentas normales no pueden mandarse push de prueba.
+    testBtn.style.display = (state.user && state.user.is_admin) ? 'block' : 'none';
     disableBtn.style.display = 'block';
+    if (state.user) state.user.has_push_subscriptions = true;
   } else {
     statusText.textContent = 'Activá las notificaciones para recibir los recordatorios directo en tu celular, además del mail.';
     enableBtn.style.display = 'block';
     testBtn.style.display = 'none';
     disableBtn.style.display = 'none';
+    if (state.user) state.user.has_push_subscriptions = false;
   }
+  syncNoEmailsCheckbox();
 }
 
 async function enablePush({ silent = false } = {}) {
