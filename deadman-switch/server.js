@@ -538,9 +538,10 @@ app.post('/api/admin/users/:id/test-reminder', authRequired, adminRequired, asyn
 app.post('/api/admin/users/:id/push/test', authRequired, adminRequired, async (req, res) => {
   const subs = db.getPushSubscriptionsByUser(req.params.id);
   if (!subs.length) return res.status(400).json({ error: 'Ese usuario no tiene dispositivos suscriptos a notificaciones' });
+  const { title, body } = req.body || {};
   const expired = await push.sendPushToUser(subs, {
-    title: 'Notificación de prueba (admin)',
-    body: 'Esto es una notificación de prueba enviada por un administrador.',
+    title: (title || '').trim() || 'Notificación de prueba (admin)',
+    body: (body || '').trim() || 'Esto es una notificación de prueba enviada por un administrador.',
     url: '/',
   });
   expired.forEach((endpoint) => db.deletePushSubscriptionByEndpoint(endpoint));
