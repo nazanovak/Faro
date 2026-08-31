@@ -77,6 +77,17 @@ function publicUser(u) {
   };
 }
 
+// El check-in se puede configurar entre 2 horas y 30 días (720 horas).
+const MIN_CHECKIN_HOURS = 2;
+const MAX_CHECKIN_HOURS = 24 * 30;
+const DEFAULT_CHECKIN_HOURS = 24;
+
+function clampCheckinInterval(value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(MAX_CHECKIN_HOURS, Math.max(MIN_CHECKIN_HOURS, n));
+}
+
 // ---------- Auth ----------
 app.post('/api/register', async (req, res) => {
   const { email, password, name, checkin_interval_hours } = req.body || {};
@@ -89,7 +100,7 @@ app.post('/api/register', async (req, res) => {
   }
 
   const hash = bcrypt.hashSync(password, 10);
-  const interval = Number(checkin_interval_hours) > 0 ? Number(checkin_interval_hours) : 24;
+  const interval = clampCheckinInterval(checkin_interval_hours, DEFAULT_CHECKIN_HOURS);
 
   const user = db.createUser({
     email: normalizedEmail,
@@ -170,12 +181,22 @@ function resolveSendReminderEmails(userId, requestedValue, currentValue) {
 app.put('/api/settings', authRequired, (req, res) => {
   const { name, checkin_interval_hours, paused, default_message, send_reminder_emails } = req.body || {};
   const user = db.findUserById(req.userId);
+
+  if (checkin_interval_hours !== undefined) {
+    const n = Number(checkin_interval_hours);
+    if (!Number.isFinite(n) || n < MIN_CHECKIN_HOURS || n > MAX_CHECKIN_HOURS) {
+      return res.status(400).json({
+        error: `El intervalo de check-in tiene que estar entre ${MIN_CHECKIN_HOURS} horas y ${MAX_CHECKIN_HOURS / 24} días.`,
+      });
+    }
+  }
+
   const resolvedEmails = resolveSendReminderEmails(req.userId, send_reminder_emails, user.send_reminder_emails !== false);
   if (resolvedEmails && resolvedEmails.error) return res.status(400).json({ error: resolvedEmails.error });
   db.updateUser(req.userId, {
     name: name !== undefined ? name : user.name,
     checkin_interval_hours:
-      checkin_interval_hours !== undefined ? Number(checkin_interval_hours) : user.checkin_interval_hours,
+      checkin_interval_hours !== undefined ? clampCheckinInterval(checkin_interval_hours, user.checkin_interval_hours) : user.checkin_interval_hours,
     paused: paused !== undefined ? !!paused : user.paused,
     default_message: default_message !== undefined ? default_message : user.default_message,
     send_reminder_emails: resolvedEmails,
@@ -212,7 +233,7 @@ app.put('/api/change-password', authRequired, (req, res) => {
 
 // Mandar a la propia cuenta un mail de prueba del recordatorio de "falta
 // poco para dar señal" (el mismo que se dispara automáticamente cuando
-// queda 1/4 del plazo, 1 hora antes y 15 minutos antes de que se cumpla el intervalo).
+// queda la mitad del plazo, 1 hora antes y 15 minutos antes de que se cumpla el intervalo).
 app.post('/api/test-reminder', authRequired, async (req, res) => {
   const user = db.findUserById(req.userId);
   const { urgencyLabel } = req.body || {};
@@ -559,7 +580,7 @@ app.put('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
   const patch = {
     name: name !== undefined ? name : user.name,
     email: email !== undefined ? email.toLowerCase() : user.email,
-    checkin_interval_hours: checkin_interval_hours !== undefined ? Number(checkin_interval_hours) : user.checkin_interval_hours,
+    checkin_interval_hours: checkin_interval_hours !== undefined ? clampCheckinInterval(checkin_interval_hours, user.checkin_interval_hours) : user.checkin_interval_hours,
     paused: paused !== undefined ? !!paused : user.paused,
     default_message: default_message !== undefined ? default_message : user.default_message,
     share_location: share_location !== undefined ? !!share_location : user.share_location,

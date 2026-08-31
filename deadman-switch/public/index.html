@@ -435,13 +435,19 @@
         <label>Tu apellido</label>
         <input id="settingsLastName" type="text" placeholder="Ej: Novak">
         <label style="margin-top:16px;">Cada cuánto tenés que hacer check-in</label>
-        <select id="settingsInterval">
-          <option value="24">Cada 24 horas</option>
-          <option value="48">Cada 48 horas</option>
-          <option value="72">Cada 3 días</option>
-          <option value="168">Cada 7 días</option>
-          <option value="720">Cada 30 días</option>
-        </select>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input id="settingsInterval" type="number" min="2" max="720" step="1" inputmode="numeric" style="flex:1;">
+          <span class="muted" style="white-space:nowrap;">horas</span>
+        </div>
+        <p class="muted" id="settingsIntervalHint" style="margin:6px 0 0;font-size:12.5px;">Entre 2 horas y 30 días.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
+          <button type="button" class="btn-secondary interval-preset" data-hours="24" style="padding:6px 12px;font-size:12.5px;width:auto;">24 h</button>
+          <button type="button" class="btn-secondary interval-preset" data-hours="48" style="padding:6px 12px;font-size:12.5px;width:auto;">48 h</button>
+          <button type="button" class="btn-secondary interval-preset" data-hours="72" style="padding:6px 12px;font-size:12.5px;width:auto;">3 días</button>
+          <button type="button" class="btn-secondary interval-preset" data-hours="168" style="padding:6px 12px;font-size:12.5px;width:auto;">7 días</button>
+          <button type="button" class="btn-secondary interval-preset" data-hours="720" style="padding:6px 12px;font-size:12.5px;width:auto;">30 días</button>
+        </div>
+        <div class="error hidden" id="settingsIntervalError" style="margin-top:8px;"></div>
         <div style="text-align:center;">
           <button class="btn-secondary" id="testReminderBtn" type="button" style="margin-top:10px;padding:8px 14px;font-size:13px;">Enviar recordatorio de prueba</button>
         </div>
@@ -666,6 +672,7 @@ async function loadApp() {
   $('settingsLastName').value = nameRest.join(' ');
   $('settingsDefaultMessage').value = state.user.default_message || '';
   $('settingsInterval').value = String(state.user.checkin_interval_hours);
+  updateIntervalHint();
   $('pausedCheck').checked = state.user.paused;
   syncNoEmailsCheckbox();
   renderContacts();
@@ -794,7 +801,50 @@ function syncNoEmailsCheckbox() {
   }
 }
 
+const MIN_CHECKIN_HOURS = 2;
+const MAX_CHECKIN_HOURS = 24 * 30;
+
+function formatHoursAsText(hours) {
+  const n = Number(hours);
+  if (!Number.isFinite(n)) return '';
+  if (n < 24) return `${n} hora${n === 1 ? '' : 's'}`;
+  const days = n / 24;
+  const rounded = Math.round(days * 10) / 10;
+  return `${rounded} día${rounded === 1 ? '' : 's'}`;
+}
+
+function updateIntervalHint() {
+  const raw = $('settingsInterval').value;
+  const n = Number(raw);
+  const hint = $('settingsIntervalHint');
+  const err = $('settingsIntervalError');
+  if (raw === '' || !Number.isFinite(n)) {
+    hint.textContent = 'Entre 2 horas y 30 días.';
+    err.classList.add('hidden');
+    return true;
+  }
+  if (n < MIN_CHECKIN_HOURS || n > MAX_CHECKIN_HOURS) {
+    err.textContent = `Tiene que estar entre ${MIN_CHECKIN_HOURS} horas y 30 días (${MAX_CHECKIN_HOURS} horas).`;
+    err.classList.remove('hidden');
+    hint.textContent = 'Entre 2 horas y 30 días.';
+    return false;
+  }
+  err.classList.add('hidden');
+  hint.textContent = `= ${formatHoursAsText(n)}`;
+  return true;
+}
+
+$('settingsInterval').addEventListener('input', updateIntervalHint);
+
+document.querySelectorAll('.interval-preset').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    $('settingsInterval').value = btn.dataset.hours;
+    updateIntervalHint();
+  });
+});
+
 $('saveSettings').addEventListener('click', async () => {
+  if (!updateIntervalHint()) return;
   const firstName = $('settingsName').value.trim();
   const lastName = $('settingsLastName').value.trim();
   const name = [firstName, lastName].filter(Boolean).join(' ');
@@ -813,7 +863,8 @@ $('saveSettings').addEventListener('click', async () => {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    alert(data.error || 'No se pudo guardar.');
+    $('settingsIntervalError').textContent = data.error || 'No se pudo guardar.';
+    $('settingsIntervalError').classList.remove('hidden');
     syncNoEmailsCheckbox();
     return;
   }
@@ -887,7 +938,7 @@ setupDisclosure('faqToggle', 'faqBody');
 const FAQ_ITEMS = [
   {
     q: '¿Puedo activar los recordatorios de check-in?',
-    a: 'Vienen activados por defecto. Te avisamos por mail cuando falte poco para hacer check-in: cuando te quede 1/4 de tu tiempo, 1 hora antes y 15 minutos antes de que se cumpla tu intervalo configurado.',
+    a: 'Vienen activados por defecto. Te avisamos por mail cuando falte poco para hacer check-in: cuando pase la mitad de tu tiempo, 1 hora antes y 15 minutos antes de que se cumpla tu intervalo configurado.',
   },
   {
     q: '¿Puedo activar que se comparta mi ubicación?',

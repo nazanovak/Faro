@@ -22,9 +22,9 @@ const GRACE_PERIOD_MS = 2 * 60 * 60 * 1000; // 2 horas
 const WARNING_STAGES = [
   {
     key: 'warning_quarter_sent',
-    subject: 'Recordatorio: te queda 1/4 de tu tiempo para dar señal',
-    urgencyLabel: '1/4 de tu tiempo',
-    thresholdMs: (intervalMs) => intervalMs - intervalMs / 4,
+    subject: 'Recordatorio: pasó la mitad de tu tiempo para dar señal',
+    urgencyLabel: 'la mitad de tu tiempo',
+    thresholdMs: (intervalMs) => intervalMs / 2,
   },
   {
     key: 'warning_1h_sent',
@@ -89,7 +89,7 @@ async function checkAllUsers() {
     }
 
     // Recordatorios preventivos al propio usuario (si los tiene activados),
-    // cuando queda 1/4 del plazo, 1 hora antes y 15 minutos antes de que se cumpla
+    // cuando pasa la mitad del plazo, 1 hora antes y 15 minutos antes de que se cumpla
     if (user.send_reminders !== false && !user.alert_sent) {
       const hasPush = db.getPushSubscriptionsByUser(user.id).length > 0;
       // Si el usuario desactivó el mail del recordatorio, solo se respeta
