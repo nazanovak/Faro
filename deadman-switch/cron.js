@@ -22,8 +22,8 @@ const GRACE_PERIOD_MS = 2 * 60 * 60 * 1000; // 2 horas
 const WARNING_STAGES = [
   {
     key: 'warning_half_sent',
-    subject: 'Recordatorio: pasó la mitad de tu tiempo para dar señal',
-    urgencyLabel: 'la mitad de tu tiempo',
+    subject: 'Recordatorio: pasó la mitad del tiempo para dar señal',
+    urgencyLabel: 'la mitad del tiempo',
     thresholdMs: (intervalMs) => intervalMs / 2,
   },
   {

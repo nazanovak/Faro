@@ -251,28 +251,6 @@ app.put('/api/change-password', authRequired, (req, res) => {
   res.json({ ok: true });
 });
 
-// Mandar a la propia cuenta un mail de prueba del recordatorio de "falta
-// poco para dar señal" (el mismo que se dispara automáticamente cuando
-// queda la mitad del plazo, 1 hora antes y 15 minutos antes de que se cumpla el intervalo).
-app.post('/api/test-reminder', authRequired, async (req, res) => {
-  const user = db.findUserById(req.userId);
-  const { urgencyLabel } = req.body || {};
-
-  const result = await sendEmail({
-    to: user.email,
-    subject: '[PRUEBA] Falta poco para enviar tu señal',
-    html:
-      '<p style="color:#b45309"><strong>Este es un mail de prueba — no significa que se te esté por vencer el plazo de verdad.</strong></p>' +
-      warningEmailHtml({
-        userName: user.name || user.email,
-        urgencyLabel: urgencyLabel || '15 minutos',
-      }),
-  });
-
-  if (!result.ok) return res.status(500).json({ error: 'No se pudo enviar el mail. Revisá la configuración de BREVO_API_KEY.' });
-  res.json({ ok: true });
-});
-
 // Borra la cuenta y todos sus contactos, sin vuelta atrás
 app.delete('/api/me', authRequired, (req, res) => {
   db.deleteUser(req.userId);
