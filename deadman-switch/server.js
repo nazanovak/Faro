@@ -281,12 +281,10 @@ app.delete('/api/me', authRequired, (req, res) => {
 });
 
 // ---------- Contactos ----------
-// Si el email de un contacto coincide con una cuenta de Faro, el vínculo
-// (pedido de amistad) NO se manda automáticamente al crear/editar el
-// contacto. El pedido se manda a mano desde el perfil (ver POST /api/friends
-// más abajo). El contacto sigue funcionando igual que siempre mientras
-// tanto (solo recibe el mail de alerta).
-
+// Un contacto siempre recibe el mail de alerta como antes. Si además su
+// email coincide con una cuenta de Faro, desde su tarjeta podés mandarle
+// (vos, a mano) un pedido para verse la ubicación mutuamente. Mientras no
+// lo acepte, sigue siendo un contacto normal.
 function enrichContactWithAccount(contact, myUserId) {
   const target = db.findUserByEmail(String(contact.email || '').toLowerCase().trim());
   if (!target || target.id === Number(myUserId)) {
@@ -294,7 +292,11 @@ function enrichContactWithAccount(contact, myUserId) {
   }
   const link = db.findFriendLinkBetween(myUserId, target.id);
   if (!link) {
-    return { ...contact, account: null };
+    // Tiene cuenta en Faro, pero todavía no le pediste (ni te pidió) verse la ubicación.
+    return {
+      ...contact,
+      account: { user_id: target.id, link_id: null, friend_status: 'none', last_checkin_at: null, location: null },
+    };
   }
   const direction = link.from_user_id === Number(myUserId) ? 'outgoing' : 'incoming';
   const friend_status = link.status === 'accepted' ? 'accepted' : (direction === 'outgoing' ? 'pending_outgoing' : 'pending_incoming');

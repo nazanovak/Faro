@@ -368,9 +368,9 @@
     </div>
     <div class="page-body">
       <p class="muted" style="margin:-4px 4px 16px;font-size:12.5px;">
-        Si un contacto también tiene cuenta en Faro, le mandamos automáticamente un pedido para
-        que puedan verse la ubicación mutuamente. Mientras no lo acepte, sigue funcionando como un
-        contacto normal: solo recibe el mail si no hacés check-in a tiempo.
+        Un contacto siempre recibe el mail si no hacés check-in a tiempo. Si además tiene cuenta en
+        Faro, podés pedirle desde su tarjeta que se vean la ubicación mutuamente — mientras no lo
+        aceptes o no lo acepte, sigue funcionando como un contacto normal.
       </p>
 
       <div id="locationsMapWrap" class="hidden" style="margin-bottom:20px;">
@@ -988,6 +988,9 @@ function contactAccountHtml(account) {
   if (account.friend_status === 'pending_incoming') {
     return `<div class="contact-account"><span class="muted">Te mandó un pedido de vínculo — podés aceptarlo arriba, en "Pedidos recibidos".</span></div>`;
   }
+  if (account.friend_status === 'none') {
+    return `<div class="contact-account"><span class="muted">Tiene cuenta en Faro. Si querés verse la ubicación mutuamente, pedíselo abajo.</span></div>`;
+  }
   return '';
 }
 
@@ -1002,6 +1005,7 @@ function renderContacts() {
     const [g1, g2, ink] = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
     const initial = escapeHtml((c.name || '?').trim().charAt(0).toUpperCase() || '?');
     const isLinked = c.account && c.account.friend_status === 'accepted';
+    const canRequestLink = c.account && c.account.friend_status === 'none';
     return `
     <div class="contact" data-id="${c.id}">
       <div class="contact-view" id="view-${c.id}">
@@ -1020,6 +1024,7 @@ function renderContacts() {
           <button class="btn-secondary edit-btn" data-id="${c.id}">Editar</button>
           <button class="btn-secondary test-btn" data-id="${c.id}">Enviar prueba</button>
           ${isLinked ? `<button class="btn-ping friend-ping-btn" data-id="${c.account.link_id}">🔔 Pedirle que encienda el Faro</button>` : ''}
+          ${canRequestLink ? `<button class="btn-secondary request-link-btn" data-email="${escapeHtml(c.email)}">📍 Pedir ver su ubicación</button>` : ''}
           <button class="btn-danger delete-btn" data-id="${c.id}">Eliminar</button>
         </div>
       </div>
@@ -1267,6 +1272,35 @@ function wireFriendActionButtons() {
         btnEl.textContent = original;
         btnEl.disabled = false;
       }, 4000);
+    } catch (err) {
+      alert('No se pudo enviar el pedido. Revisá tu conexión.');
+      btnEl.textContent = original;
+      btnEl.disabled = false;
+    }
+  }));
+
+  document.querySelectorAll('.request-link-btn').forEach((btn) => {
+    btn.replaceWith(btn.cloneNode(true));
+  });
+  document.querySelectorAll('.request-link-btn').forEach((btn) => btn.addEventListener('click', async (e) => {
+    const btnEl = e.currentTarget;
+    const email = btnEl.dataset.email;
+    const original = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Enviando...';
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'No se pudo enviar el pedido.');
+        btnEl.textContent = original;
+        btnEl.disabled = false;
+        return;
+      }
+      await loadFriends();
     } catch (err) {
       alert('No se pudo enviar el pedido. Revisá tu conexión.');
       btnEl.textContent = original;
