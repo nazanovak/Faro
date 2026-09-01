@@ -721,6 +721,9 @@ function updatePauseButton() {
 $('pauseToggleBtn').addEventListener('click', async () => {
   const btn = $('pauseToggleBtn');
   const nextPaused = !state.user.paused;
+  if (nextPaused && !confirm('¿Seguro que querés pausar? Mientras esté en pausa, no se van a mandar avisos a tus contactos aunque no hagas check-in.')) {
+    return;
+  }
   btn.disabled = true;
   const res = await fetch('/api/settings', {
     method: 'PUT',
