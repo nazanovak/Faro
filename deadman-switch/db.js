@@ -69,7 +69,7 @@ module.exports = {
       last_checkin_at: nowIso(),
       send_reminders: true,
       send_reminder_emails: true,
-      warning_quarter_sent: false,
+      warning_half_sent: false,
       warning_1h_sent: false,
       warning_15m_sent: false,
       alert_sent: false,

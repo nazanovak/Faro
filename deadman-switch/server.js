@@ -133,9 +133,29 @@ app.post('/api/logout', (req, res) => {
 // ---------- Usuario / dashboard ----------
 app.get('/api/me', authRequired, (req, res) => {
   const user = db.findUserById(req.userId);
-  const contacts = db.getContactsByUser(req.userId);
+  const contacts = db.getContactsByUser(req.userId).map((c) => enrichContactWithAccount(c, req.userId));
   const referencePeople = db.getReferencePeopleByUser(req.userId);
-  res.json({ user: publicUser(user), contacts, referencePeople });
+
+  const allLinks = db.getFriendLinksForUser(req.userId);
+  const contactUserIds = new Set(contacts.map((c) => c.account && c.account.user_id).filter(Boolean));
+
+  // Pedidos que te mandaron (alguien te agregó a vos como su contacto y
+  // todavía no respondiste).
+  const incomingRequests = allLinks
+    .filter((l) => l.status === 'pending' && l.to_user_id === req.userId)
+    .map((l) => publicFriend(l, req.userId))
+    .filter(Boolean);
+
+  // Vínculos ya aceptados con gente que TE agregó a vos, pero que vos no
+  // tenés cargada como tu propio contacto (si la tuvieras, ya aparece
+  // colgada de esa tarjeta de contacto más arriba).
+  const linkedAccounts = allLinks
+    .filter((l) => l.status === 'accepted')
+    .map((l) => publicFriend(l, req.userId))
+    .filter(Boolean)
+    .filter((f) => !contactUserIds.has(f.id));
+
+  res.json({ user: publicUser(user), contacts, referencePeople, incomingRequests, linkedAccounts });
 });
 
 app.post('/api/checkin', authRequired, (req, res) => {
@@ -261,6 +281,38 @@ app.delete('/api/me', authRequired, (req, res) => {
 });
 
 // ---------- Contactos ----------
+// Si el email de un contacto coincide con una cuenta de Faro, el vínculo
+// (pedido de amistad) NO se manda automáticamente al crear/editar el
+// contacto. El pedido se manda a mano desde el perfil (ver POST /api/friends
+// más abajo). El contacto sigue funcionando igual que siempre mientras
+// tanto (solo recibe el mail de alerta).
+
+function enrichContactWithAccount(contact, myUserId) {
+  const target = db.findUserByEmail(String(contact.email || '').toLowerCase().trim());
+  if (!target || target.id === Number(myUserId)) {
+    return { ...contact, account: null };
+  }
+  const link = db.findFriendLinkBetween(myUserId, target.id);
+  if (!link) {
+    return { ...contact, account: null };
+  }
+  const direction = link.from_user_id === Number(myUserId) ? 'outgoing' : 'incoming';
+  const friend_status = link.status === 'accepted' ? 'accepted' : (direction === 'outgoing' ? 'pending_outgoing' : 'pending_incoming');
+  const location = (link.status === 'accepted' && target.share_location && target.last_lat != null)
+    ? { lat: target.last_lat, lng: target.last_lng, at: target.last_location_at }
+    : null;
+  return {
+    ...contact,
+    account: {
+      user_id: target.id,
+      link_id: link.id,
+      friend_status,
+      last_checkin_at: target.last_checkin_at || null,
+      location,
+    },
+  };
+}
+
 app.post('/api/contacts', authRequired, (req, res) => {
   const { name, email, message } = req.body || {};
   if (!name || !email) return res.status(400).json({ error: 'Falta nombre o email del contacto' });
@@ -281,6 +333,16 @@ app.put('/api/contacts/:id', authRequired, (req, res) => {
 });
 
 app.delete('/api/contacts/:id', authRequired, (req, res) => {
+  // Si ese contacto también estaba vinculado (te veía/lo veías en el
+  // mapa), al borrar el contacto se corta también el vínculo.
+  const contact = db.findContact(req.params.id, req.userId);
+  if (contact) {
+    const target = db.findUserByEmail(String(contact.email || '').toLowerCase().trim());
+    if (target) {
+      const link = db.findFriendLinkBetween(req.userId, target.id);
+      if (link) db.deleteFriendLink(link.id);
+    }
+  }
   db.deleteContact(req.params.id, req.userId);
   res.json({ ok: true });
 });

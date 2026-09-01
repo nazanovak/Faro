@@ -155,6 +155,9 @@
   .contact-name{font-weight:600;}
   .contact-email{color:var(--muted);font-size:13px;}
   .contact-msg{color:var(--text);font-size:14px;margin-top:10px;white-space:pre-wrap;}
+  .contact-account{color:var(--text);font-size:13px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);line-height:1.5;}
+  .contact-account-accepted{color:var(--green);}
+  .contact-account a{word-break:break-word;}
   .contact-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
   .btn-ping{background:transparent;border:1px solid var(--amber);color:var(--amber);font-size:13px;padding:7px 12px;}
   .btn-ping:hover{background:rgba(217,119,6,0.08);}
@@ -342,11 +345,6 @@
         <span class="quick-card-title">Configuración</span>
         <span class="quick-card-sub" id="quickInterval">—</span>
       </button>
-      <button type="button" class="quick-card" id="openFriendsPage">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-        <span class="quick-card-title">Amigos</span>
-        <span class="quick-card-sub" id="quickFriendsCount">—</span>
-      </button>
     </div>
 
     <div class="card">
@@ -369,6 +367,18 @@
       <span class="page-title">Contactos</span>
     </div>
     <div class="page-body">
+      <p class="muted" style="margin:-4px 4px 16px;font-size:12.5px;">
+        Si un contacto también tiene cuenta en Faro, le mandamos automáticamente un pedido para
+        que puedan verse la ubicación mutuamente. Mientras no lo acepte, sigue funcionando como un
+        contacto normal: solo recibe el mail si no hacés check-in a tiempo.
+      </p>
+
+      <div id="locationsMapWrap" class="hidden" style="margin-bottom:20px;">
+        <div id="locationsMap" style="width:100%;height:260px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-card);"></div>
+      </div>
+
+      <div id="friendRequestsIncoming"></div>
+
       <div class="section-title" id="contactsSection" style="margin-top:0;">Tus contactos de emergencia</div>
       <div id="contactsList"></div>
 
@@ -388,6 +398,8 @@
           <div class="error hidden" id="contactError"></div>
         </div>
       </div>
+
+      <div id="linkedAccountsWrap"></div>
 
       <div class="section-title">Personas de contacto <span class="muted" id="refPeopleCount" style="font-weight:400;"></span></div>
       <p class="muted" style="margin:-4px 4px 12px;font-size:12.5px;">
@@ -501,50 +513,6 @@
     </div>
   </div>
 
-  <!-- ================= PÁGINA: AMIGOS ================= -->
-  <div class="page-overlay" id="page-friends">
-    <div class="page-header">
-      <button type="button" class="page-back" id="closeFriendsPage" aria-label="Volver">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-      </button>
-      <span class="page-title">Amigos</span>
-    </div>
-    <div class="page-body">
-      <p class="muted" style="margin:-4px 4px 16px;font-size:12.5px;">
-        Agregá a otros usuarios de Faro por su email. Una vez que se aceptan mutuamente,
-        cada uno ve dónde estaba el otro la última vez que hizo check-in (si tiene
-        "compartir ubicación" activado en Configuración).
-      </p>
-
-      <div id="friendsMapWrap" class="hidden" style="margin-bottom:20px;">
-        <div id="friendsMap" style="width:100%;height:260px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-card);"></div>
-      </div>
-
-      <div id="friendRequestsIncoming"></div>
-
-      <div class="section-title" id="friendsListTitle" style="margin-top:0;">Tus amigos</div>
-      <div id="friendsList"></div>
-      <p class="muted hidden" id="friendsEmptyMsg">Todavía no agregaste a nadie.</p>
-
-      <div id="friendRequestsOutgoing"></div>
-
-      <div class="card">
-        <div class="disclosure-head" id="addFriendToggle" aria-expanded="false">
-          <h3>Agregar amigo</h3>
-          <svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-        </div>
-        <div class="disclosure-body" id="addFriendBody">
-          <label>Email de la otra persona</label>
-          <input id="fEmail" type="email" placeholder="amigo@ejemplo.com">
-          <p class="muted" style="margin:6px 0 0;font-size:12.5px;">Tiene que tener cuenta creada en Faro.</p>
-          <button class="btn-secondary" id="addFriend" style="width:100%;margin-top:16px;">Enviar pedido</button>
-          <div class="ok hidden" id="friendOk">Pedido enviado.</div>
-          <div class="error hidden" id="friendError"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
 </div>
 
 <script>
@@ -570,17 +538,14 @@ function closePage(id) {
   $(id).classList.remove('open');
   document.body.classList.remove('page-locked');
 }
-$('openContactsPage').addEventListener('click', () => openPage('page-contacts'));
+$('openContactsPage').addEventListener('click', () => { openPage('page-contacts'); loadFriends(); });
 $('openConfigPage').addEventListener('click', () => openPage('page-config'));
 $('closeContactsPage').addEventListener('click', () => closePage('page-contacts'));
 $('closeConfigPage').addEventListener('click', () => closePage('page-config'));
-$('openFriendsPage').addEventListener('click', () => { openPage('page-friends'); loadFriends(); });
-$('closeFriendsPage').addEventListener('click', () => closePage('page-friends'));
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   closePage('page-contacts');
   closePage('page-config');
-  closePage('page-friends');
 });
 
 // ---------- Auth screen toggling ----------
@@ -653,7 +618,6 @@ $('logoutBtn').addEventListener('click', async () => {
   clearInterval(tickInterval);
   closePage('page-contacts');
   closePage('page-config');
-  closePage('page-friends');
   $('app').style.display = 'none';
   $('auth').style.display = 'block';
 });
@@ -685,14 +649,11 @@ async function loadApp() {
 
 function updateQuickNav() {
   const n = (state.contacts || []).length;
-  $('quickContactsCount').textContent = n === 0 ? 'Sin contactos' : n === 1 ? '1 activo' : `${n} activos`;
+  const pendingIncoming = (state.incomingRequests || []).length;
+  $('quickContactsCount').textContent = pendingIncoming > 0
+    ? `${n} · ${pendingIncoming} pedido${pendingIncoming === 1 ? '' : 's'}`
+    : (n === 0 ? 'Sin contactos' : n === 1 ? '1 activo' : `${n} activos`);
   $('quickInterval').textContent = `cada ${state.user.checkin_interval_hours}h`;
-  const friends = state.friends || [];
-  const accepted = friends.filter((f) => f.status === 'accepted').length;
-  const pending = friends.filter((f) => f.status === 'pending' && f.direction === 'incoming').length;
-  $('quickFriendsCount').textContent = pending > 0
-    ? `${accepted} · ${pending} pedido${pending === 1 ? '' : 's'}`
-    : (accepted === 0 ? 'Sin amigos' : accepted === 1 ? '1 amigo' : `${accepted} amigos`);
 }
 
 function renderStatus() {
@@ -931,7 +892,6 @@ function setupDisclosure(toggleId, bodyId) {
 }
 setupDisclosure('addContactToggle', 'addContactBody');
 setupDisclosure('addRefPersonToggle', 'addRefPersonBody');
-setupDisclosure('addFriendToggle', 'addFriendBody');
 setupDisclosure('faqToggle', 'faqBody');
 
 // ---------- FAQ ----------
@@ -1008,6 +968,29 @@ const AVATAR_GRADIENTS = [
   ['#c9c3f0', '#6a5acd', '#20163d'],
 ];
 
+// Si el contacto también tiene cuenta de Faro vinculada, esto arma el
+// bloque extra que se muestra dentro de su tarjeta (según si ya aceptó
+// el vínculo, si está pendiente, o si fue él quien te lo pidió a vos).
+function contactAccountHtml(account) {
+  if (!account) return '';
+  if (account.friend_status === 'accepted') {
+    const checkinTxt = account.last_checkin_at
+      ? `Último check-in ${relativeTime(account.last_checkin_at)} · ${formatDate(account.last_checkin_at)}`
+      : 'Todavía no hizo check-in';
+    const locTxt = account.location
+      ? `📍 Ubicación de ${relativeTime(account.location.at)} · ${formatDate(account.location.at)} — <a href="https://www.google.com/maps?q=${account.location.lat},${account.location.lng}" target="_blank" rel="noopener" style="color:var(--amber);text-decoration:underline;">ver en Google Maps</a>`
+      : 'No comparte su ubicación por ahora.';
+    return `<div class="contact-account contact-account-accepted">📶 Vinculado — ${checkinTxt}<br>${locTxt}</div>`;
+  }
+  if (account.friend_status === 'pending_outgoing') {
+    return `<div class="contact-account"><span class="muted">Tiene cuenta en Faro — le mandamos un pedido para verse la ubicación, todavía no lo aceptó.</span></div>`;
+  }
+  if (account.friend_status === 'pending_incoming') {
+    return `<div class="contact-account"><span class="muted">Te mandó un pedido de vínculo — podés aceptarlo arriba, en "Pedidos recibidos".</span></div>`;
+  }
+  return '';
+}
+
 function renderContacts() {
   updateQuickNav();
   const list = $('contactsList');
@@ -1018,6 +1001,7 @@ function renderContacts() {
   list.innerHTML = state.contacts.map((c, i) => {
     const [g1, g2, ink] = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
     const initial = escapeHtml((c.name || '?').trim().charAt(0).toUpperCase() || '?');
+    const isLinked = c.account && c.account.friend_status === 'accepted';
     return `
     <div class="contact" data-id="${c.id}">
       <div class="contact-view" id="view-${c.id}">
@@ -1031,9 +1015,11 @@ function renderContacts() {
           </div>
         </div>
         <div class="contact-msg">${escapeHtml(c.message) || '<span class="muted">Sin mensaje personalizado</span>'}</div>
+        ${contactAccountHtml(c.account)}
         <div class="contact-actions">
           <button class="btn-secondary edit-btn" data-id="${c.id}">Editar</button>
           <button class="btn-secondary test-btn" data-id="${c.id}">Enviar prueba</button>
+          ${isLinked ? `<button class="btn-ping friend-ping-btn" data-id="${c.account.link_id}">🔔 Pedirle que encienda el Faro</button>` : ''}
           <button class="btn-danger delete-btn" data-id="${c.id}">Eliminar</button>
         </div>
       </div>
@@ -1057,8 +1043,7 @@ function renderContacts() {
     const id = e.target.dataset.id;
     if (!confirm('¿Eliminar este contacto?')) return;
     await fetch('/api/contacts/' + id, { method: 'DELETE' });
-    state.contacts = state.contacts.filter(c => String(c.id) !== id);
-    renderContacts();
+    await loadFriends();
   }));
 
   list.querySelectorAll('.test-btn').forEach(btn => btn.addEventListener('click', async (e) => {
@@ -1093,10 +1078,10 @@ function renderContacts() {
       body: JSON.stringify({ name, email, message }),
     });
     if (!res.ok) { alert('No se pudo guardar.'); return; }
-    const contact = state.contacts.find(c => String(c.id) === id);
-    Object.assign(contact, { name, email, message });
-    renderContacts();
+    await loadFriends();
   }));
+
+  wireFriendActionButtons();
 }
 
 $('addContact').addEventListener('click', async () => {
@@ -1115,24 +1100,31 @@ $('addContact').addEventListener('click', async () => {
   });
   const data = await res.json();
   if (!res.ok) { $('contactError').textContent = data.error; $('contactError').classList.remove('hidden'); return; }
-  state.contacts.push({ id: data.id, name, email, message });
-  renderContacts();
+  await loadFriends();
   $('cName').value = ''; $('cEmail').value = ''; $('cMessage').value = '';
   $('addContactBody').classList.remove('open');
   $('addContactToggle').setAttribute('aria-expanded', 'false');
 });
 
-// ---------- Amigos (otros usuarios de Faro, se ven la ubicación mutuamente) ----------
-let friendsMapInstance = null;
-let friendsMapMarkers = [];
+// ---------- Vínculo de ubicación con contactos que también usan Faro ----------
+let locationsMapInstance = null;
+let locationsMapMarkers = [];
 
+// Trae todo de nuevo desde /api/me (contactos ya enriquecidos con su
+// estado de vínculo, pedidos recibidos, y cuentas que te agregaron a vos)
+// y vuelve a pintar todo lo relacionado.
 async function loadFriends() {
-  const res = await fetch('/api/friends');
+  const res = await fetch('/api/me');
   if (!res.ok) return;
   const data = await res.json();
-  state.friends = data.friends || [];
+  state.contacts = data.contacts || [];
+  state.incomingRequests = data.incomingRequests || [];
+  state.linkedAccounts = data.linkedAccounts || [];
+  renderContacts();
+  renderIncomingRequests();
+  renderLinkedAccounts();
+  renderLocationsMap();
   updateQuickNav();
-  renderFriends();
 }
 
 function relativeTime(iso) {
@@ -1147,110 +1139,114 @@ function relativeTime(iso) {
   return `hace ${days}d`;
 }
 
-function renderFriends() {
-  const friends = state.friends || [];
-  const accepted = friends.filter((f) => f.status === 'accepted');
-  const incoming = friends.filter((f) => f.status === 'pending' && f.direction === 'incoming');
-  const outgoing = friends.filter((f) => f.status === 'pending' && f.direction === 'outgoing');
-
-  // ---- pedidos recibidos ----
-  const incomingEl = $('friendRequestsIncoming');
+// Gente que te agregó a vos y todavía no respondiste (aceptar = ambos se
+// ven la ubicación mutuamente; rechazar = como si nunca hubiese pasado,
+// igual les sigue llegando el mail si vos sos su contacto de emergencia).
+function renderIncomingRequests() {
+  const incoming = state.incomingRequests || [];
+  const el = $('friendRequestsIncoming');
   if (incoming.length === 0) {
-    incomingEl.innerHTML = '';
-  } else {
-    incomingEl.innerHTML = `
-      <div class="section-title" style="margin-top:0;">Pedidos recibidos</div>
-      ${incoming.map((f) => `
-        <div class="contact" data-link-id="${f.link_id}">
-          <div class="contact-view">
-            <div class="contact-head">
-              <div class="contact-id">
-                <div class="contact-avatar" style="background:linear-gradient(135deg,#fde68a,#d97706);color:#3a2405;">${escapeHtml((f.name || '?').charAt(0).toUpperCase())}</div>
-                <div>
-                  <div class="contact-name">${escapeHtml(f.name)}</div>
-                  <div class="contact-email">${escapeHtml(f.email)}</div>
-                </div>
-              </div>
-            </div>
-            <div class="contact-actions">
-              <button class="btn-secondary friend-accept-btn" data-id="${f.link_id}">Aceptar</button>
-              <button class="btn-danger friend-reject-btn" data-id="${f.link_id}">Rechazar</button>
-            </div>
-          </div>
-        </div>
-      `).join('')}
-    `;
+    el.innerHTML = '';
+    return;
   }
-
-  // ---- amigos aceptados ----
-  const list = $('friendsList');
-  $('friendsEmptyMsg').classList.toggle('hidden', accepted.length !== 0);
-  list.innerHTML = accepted.map((f, i) => {
-    const [g1, g2, ink] = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
-    const initial = escapeHtml((f.name || '?').trim().charAt(0).toUpperCase() || '?');
-    const checkinTxt = f.last_checkin_at
-      ? `Último check-in ${relativeTime(f.last_checkin_at)} · ${formatDate(f.last_checkin_at)}`
-      : 'Todavía no hizo check-in';
-    const locTxt = f.location
-      ? `📍 Ubicación de ${relativeTime(f.location.at)} · ${formatDate(f.location.at)} — <a href="https://www.google.com/maps?q=${f.location.lat},${f.location.lng}" target="_blank" rel="noopener" style="color:var(--amber);text-decoration:underline;">ver en Google Maps</a>`
-      : '<span class="muted">No comparte su ubicación</span>';
-    return `
-    <div class="contact" data-link-id="${f.link_id}">
-      <div class="contact-view">
-        <div class="contact-head">
-          <div class="contact-id">
-            <div class="contact-avatar" style="background:linear-gradient(135deg, ${g1}, ${g2});color:${ink};">${initial}</div>
-            <div>
-              <div class="contact-name">${escapeHtml(f.name)}</div>
-              <div class="contact-email">${escapeHtml(f.email)}</div>
-            </div>
-          </div>
-        </div>
-        <div class="contact-msg">${checkinTxt}<br>${locTxt}</div>
-        <div class="contact-actions">
-          <button class="btn-ping friend-ping-btn" data-id="${f.link_id}">🔔 Pedirle que encienda el Faro</button>
-          <button class="btn-danger friend-remove-btn" data-id="${f.link_id}">Eliminar</button>
-        </div>
-      </div>
-    </div>
-  `;
-  }).join('');
-
-  // ---- pedidos enviados, todavía sin aceptar ----
-  const outgoingEl = $('friendRequestsOutgoing');
-  outgoingEl.innerHTML = outgoing.length === 0 ? '' : `
-    <div class="section-title">Pedidos enviados</div>
-    ${outgoing.map((f) => `
+  el.innerHTML = `
+    <div class="section-title" style="margin-top:0;">Pedidos de ubicación recibidos</div>
+    ${incoming.map((f) => `
       <div class="contact" data-link-id="${f.link_id}">
         <div class="contact-view">
           <div class="contact-head">
             <div class="contact-id">
-              <div class="contact-avatar" style="background:linear-gradient(135deg,#e5e0d8,#c9c3b8);color:#3a3428;">${escapeHtml((f.name || '?').charAt(0).toUpperCase())}</div>
+              <div class="contact-avatar" style="background:linear-gradient(135deg,#fde68a,#d97706);color:#3a2405;">${escapeHtml((f.name || '?').charAt(0).toUpperCase())}</div>
               <div>
                 <div class="contact-name">${escapeHtml(f.name)}</div>
-                <div class="contact-email muted">Esperando que acepte</div>
+                <div class="contact-email">${escapeHtml(f.email)}</div>
               </div>
             </div>
           </div>
+          <div class="contact-msg">Te agregó como contacto y quiere verse la ubicación mutuamente.</div>
           <div class="contact-actions">
-            <button class="btn-danger friend-remove-btn" data-id="${f.link_id}">Cancelar pedido</button>
+            <button class="btn-secondary friend-accept-btn" data-id="${f.link_id}">Aceptar</button>
+            <button class="btn-danger friend-reject-btn" data-id="${f.link_id}">Rechazar</button>
           </div>
         </div>
       </div>
     `).join('')}
   `;
+  wireFriendActionButtons();
+}
 
+// Gente que te agregó y ya aceptaste, pero que vos no tenés cargada como
+// tu propio contacto de emergencia (si la tuvieras, ya aparece arriba,
+// colgada de esa tarjeta).
+function renderLinkedAccounts() {
+  const linked = state.linkedAccounts || [];
+  const wrap = $('linkedAccountsWrap');
+  if (linked.length === 0) {
+    wrap.innerHTML = '';
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="section-title">Te agregaron a vos</div>
+    ${linked.map((f, i) => {
+      const [g1, g2, ink] = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
+      const initial = escapeHtml((f.name || '?').trim().charAt(0).toUpperCase() || '?');
+      const checkinTxt = f.last_checkin_at
+        ? `Último check-in ${relativeTime(f.last_checkin_at)} · ${formatDate(f.last_checkin_at)}`
+        : 'Todavía no hizo check-in';
+      const locTxt = f.location
+        ? `📍 Ubicación de ${relativeTime(f.location.at)} · ${formatDate(f.location.at)} — <a href="https://www.google.com/maps?q=${f.location.lat},${f.location.lng}" target="_blank" rel="noopener" style="color:var(--amber);text-decoration:underline;">ver en Google Maps</a>`
+        : 'No comparte su ubicación por ahora.';
+      return `
+      <div class="contact" data-link-id="${f.link_id}">
+        <div class="contact-view">
+          <div class="contact-head">
+            <div class="contact-id">
+              <div class="contact-avatar" style="background:linear-gradient(135deg, ${g1}, ${g2});color:${ink};">${initial}</div>
+              <div>
+                <div class="contact-name">${escapeHtml(f.name)}</div>
+                <div class="contact-email">${escapeHtml(f.email)}</div>
+              </div>
+            </div>
+          </div>
+          <div class="contact-msg">${checkinTxt}<br>${locTxt}</div>
+          <div class="contact-actions">
+            <button class="btn-ping friend-ping-btn" data-id="${f.link_id}">🔔 Pedirle que encienda el Faro</button>
+            <button class="btn-danger friend-remove-btn" data-id="${f.link_id}">Dejar de compartir</button>
+          </div>
+        </div>
+      </div>
+    `;
+    }).join('')}
+  `;
+  wireFriendActionButtons();
+}
+
+// Engancha los botones de aceptar/rechazar/quitar/pedir-checkin, sin
+// importar si viven en la lista de contactos, pedidos recibidos, o
+// cuentas que te agregaron (se puede llamar varias veces sin problema).
+function wireFriendActionButtons() {
+  document.querySelectorAll('.friend-accept-btn').forEach((btn) => {
+    btn.replaceWith(btn.cloneNode(true));
+  });
   document.querySelectorAll('.friend-accept-btn').forEach((btn) => btn.addEventListener('click', async (e) => {
     const id = e.target.dataset.id;
     await fetch('/api/friends/' + id + '/accept', { method: 'POST' });
     await loadFriends();
   }));
+
+  document.querySelectorAll('.friend-reject-btn, .friend-remove-btn').forEach((btn) => {
+    btn.replaceWith(btn.cloneNode(true));
+  });
   document.querySelectorAll('.friend-reject-btn, .friend-remove-btn').forEach((btn) => btn.addEventListener('click', async (e) => {
     const id = e.target.dataset.id;
     if (!confirm('¿Confirmás?')) return;
     await fetch('/api/friends/' + id, { method: 'DELETE' });
     await loadFriends();
   }));
+
+  document.querySelectorAll('.friend-ping-btn').forEach((btn) => {
+    btn.replaceWith(btn.cloneNode(true));
+  });
   document.querySelectorAll('.friend-ping-btn').forEach((btn) => btn.addEventListener('click', async (e) => {
     const btnEl = e.currentTarget;
     const id = btnEl.dataset.id;
@@ -1277,28 +1273,36 @@ function renderFriends() {
       btnEl.disabled = false;
     }
   }));
-
-  renderFriendsMap(accepted.filter((f) => f.location));
 }
 
-function renderFriendsMap(withLocation) {
-  const wrap = $('friendsMapWrap');
+// Mapa único con TODAS las ubicaciones que tenés visibles: tanto las de
+// tus contactos vinculados como las de cuentas que te agregaron a vos.
+function renderLocationsMap() {
+  const fromContacts = (state.contacts || [])
+    .filter((c) => c.account && c.account.friend_status === 'accepted' && c.account.location)
+    .map((c) => ({ name: c.name, location: c.account.location }));
+  const fromLinked = (state.linkedAccounts || [])
+    .filter((f) => f.location)
+    .map((f) => ({ name: f.name, location: f.location }));
+  const withLocation = [...fromContacts, ...fromLinked];
+
+  const wrap = $('locationsMapWrap');
   if (withLocation.length === 0 || typeof L === 'undefined') {
     wrap.classList.add('hidden');
     return;
   }
   wrap.classList.remove('hidden');
 
-  if (!friendsMapInstance) {
-    friendsMapInstance = L.map('friendsMap', { scrollWheelZoom: false });
+  if (!locationsMapInstance) {
+    locationsMapInstance = L.map('locationsMap', { scrollWheelZoom: false });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap',
       maxZoom: 19,
-    }).addTo(friendsMapInstance);
+    }).addTo(locationsMapInstance);
   }
 
-  friendsMapMarkers.forEach((m) => friendsMapInstance.removeLayer(m));
-  friendsMapMarkers = [];
+  locationsMapMarkers.forEach((m) => locationsMapInstance.removeLayer(m));
+  locationsMapMarkers = [];
 
   const amberIcon = L.divIcon({
     className: '',
@@ -1308,44 +1312,19 @@ function renderFriendsMap(withLocation) {
   });
 
   withLocation.forEach((f) => {
-    const marker = L.marker([f.location.lat, f.location.lng], { icon: amberIcon }).addTo(friendsMapInstance);
+    const marker = L.marker([f.location.lat, f.location.lng], { icon: amberIcon }).addTo(locationsMapInstance);
     marker.bindPopup(`<strong>${escapeHtml(f.name)}</strong><br>${escapeHtml(relativeTime(f.location.at) || '')}`);
-    friendsMapMarkers.push(marker);
+    locationsMapMarkers.push(marker);
   });
 
   const bounds = L.latLngBounds(withLocation.map((f) => [f.location.lat, f.location.lng]));
   if (withLocation.length === 1) {
-    friendsMapInstance.setView(bounds.getCenter(), 13);
+    locationsMapInstance.setView(bounds.getCenter(), 13);
   } else {
-    friendsMapInstance.fitBounds(bounds.pad(0.25));
+    locationsMapInstance.fitBounds(bounds.pad(0.25));
   }
-  setTimeout(() => friendsMapInstance.invalidateSize(), 150);
+  setTimeout(() => locationsMapInstance.invalidateSize(), 150);
 }
-
-$('addFriend').addEventListener('click', async () => {
-  const email = $('fEmail').value.trim();
-  $('friendError').classList.add('hidden');
-  $('friendOk').classList.add('hidden');
-  if (!email) {
-    $('friendError').textContent = 'Ingresá un email.';
-    $('friendError').classList.remove('hidden');
-    return;
-  }
-  const res = await fetch('/api/friends', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    $('friendError').textContent = data.error || 'No se pudo enviar el pedido.';
-    $('friendError').classList.remove('hidden');
-    return;
-  }
-  $('fEmail').value = '';
-  $('friendOk').classList.remove('hidden');
-  setTimeout(() => $('friendOk').classList.add('hidden'), 2500);
-  await loadFriends();
-});
 
 // ---------- Personas de contacto (no reciben mail, solo se listan en el mail de los contactos) ----------
 const MAX_REF_PEOPLE = 5;
